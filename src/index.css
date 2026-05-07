@@ -12,12 +12,18 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
 button {
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .app-shell {
@@ -120,8 +126,7 @@ button {
   padding: 16px 20px;
 }
 
-.import-summary span,
-.description-cell small {
+.import-summary span {
   color: #667085;
   font-size: 12px;
   font-weight: 700;
@@ -206,10 +211,21 @@ button {
   overflow: hidden;
 }
 
+.transactions-section table {
+  min-width: 920px;
+}
+
+.transactions-section table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 .section-header {
   align-items: center;
   border-bottom: 1px solid #d9e0ea;
   display: flex;
+  gap: 16px;
   justify-content: space-between;
   padding: 16px 20px;
 }
@@ -224,6 +240,21 @@ button {
   font-size: 14px;
 }
 
+.table-toolbar button {
+  background: #175cd3;
+  border: 1px solid #175cd3;
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.table-toolbar button:hover:not(:disabled) {
+  background: #144fb5;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
@@ -232,9 +263,10 @@ table {
 th,
 td {
   border-bottom: 1px solid #edf1f6;
-  font-size: 14px;
-  padding: 13px 20px;
+  font-size: 13px;
+  padding: 7px 10px;
   text-align: left;
+  vertical-align: middle;
 }
 
 th {
@@ -249,15 +281,72 @@ th {
   text-align: right;
 }
 
+.select-column {
+  text-align: center;
+  width: 40px;
+}
+
+.select-column input {
+  height: 15px;
+  width: 15px;
+}
+
 .description-cell {
   display: grid;
-  gap: 4px;
+}
+
+.table-input {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  font-size: 13px;
+  min-height: 28px;
+  padding: 4px 7px;
+  width: 100%;
+}
+
+.table-input:focus {
+  border-color: #175cd3;
+  outline: 2px solid #bfdbfe;
+  outline-offset: 0;
+}
+
+.date-input {
+  min-width: 96px;
+}
+
+.description-input {
+  min-width: 220px;
+}
+
+.type-select {
+  min-width: 98px;
+}
+
+.amount-input {
+  min-width: 86px;
+  text-align: right;
+}
+
+.input-invalid {
+  border-color: #dc2626;
+  background: #fef2f2;
 }
 
 .empty-state {
   color: #667085;
   height: 160px;
   text-align: center;
+}
+
+.table-scroll {
+  max-height: 430px;
+  overflow: auto;
+}
+
+.confirmed-table-scroll {
+  max-height: 320px;
 }
 
 .diagnostics-section {
@@ -327,6 +416,6 @@ th {
   }
 
   table {
-    min-width: 720px;
+    min-width: 860px;
   }
 }

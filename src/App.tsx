@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import type { ExpenseTrackerApi } from './preload';
-import type { PdfParseResult, StatementSource, TransactionCandidate } from './pdfImport';
+import type { PdfParseResult, StatementSource, TransactionCandidate, TransactionType } from './pdfImport';
 
 declare global {
   interface Window {
@@ -15,6 +15,16 @@ type ImportError = {
   message: string;
 };
 
+type CandidateDraft = Omit<TransactionCandidate, 'amount'> & {
+  amount: string;
+};
+
+type ConfirmedTransaction = TransactionCandidate;
+
+type SelectionTable = 'candidate' | 'confirmed';
+
+const transactionTypes: TransactionType[] = ['expense', 'income', 'transfer'];
+
 const emptySource: StatementSource = {
   issuer: '',
   account: '',
@@ -27,10 +37,26 @@ export function App() {
   const [sourceForm, setSourceForm] = useState<StatementSource>(emptySource);
   const [confirmedSource, setConfirmedSource] = useState<StatementSource | null>(null);
   const [importError, setImportError] = useState<ImportError | null>(null);
+  const [candidateDrafts, setCandidateDrafts] = useState<CandidateDraft[]>([]);
+  const [confirmedTransactions, setConfirmedTransactions] = useState<ConfirmedTransaction[]>([]);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
+  const [selectedConfirmedIds, setSelectedConfirmedIds] = useState<string[]>([]);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
-  const transactions = useMemo<TransactionCandidate[]>(
-    () => (status === 'parsed' && parseResult ? parseResult.candidates : []),
-    [parseResult, status],
+  const originalCandidatesById = useMemo(
+    () => new Map((parseResult?.candidates ?? []).map((candidate) => [candidate.id, candidate])),
+    [parseResult],
+  );
+  const invalidSelectedCandidateIds = useMemo(
+    () =>
+      candidateDrafts
+        .filter((candidate) => selectedCandidateIds.includes(candidate.id) && !isValidAmount(candidate.amount))
+        .map((candidate) => candidate.id),
+    [candidateDrafts, selectedCandidateIds],
+  );
+  const sortedConfirmedTransactions = useMemo(
+    () => [...confirmedTransactions].sort(compareConfirmedTransactions),
+    [confirmedTransactions],
   );
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -47,6 +73,7 @@ export function App() {
         message: 'Choose a PDF statement file.',
       });
       setStatus('error');
+      resetReviewState();
       return;
     }
 
@@ -54,12 +81,14 @@ export function App() {
     setParseResult(null);
     setConfirmedSource(null);
     setImportError(null);
+    resetReviewState();
 
     try {
       const data = await file.arrayBuffer();
       const result = await window.expenseTracker.parsePdfStatement(file.name, data);
 
       setParseResult(result);
+      setCandidateDrafts(result.candidates.map(candidateToDraft));
       setSourceForm({
         issuer: sourceValue(result.source.issuer),
         account: sourceValue(result.source.account),
@@ -93,6 +122,87 @@ export function App() {
     setStatus('parsed');
   }
 
+  function handleCandidateFieldChange(id: string, field: keyof CandidateDraft, value: string) {
+    setCandidateDrafts((currentCandidates) =>
+      currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, [field]: value } : candidate)),
+    );
+    setReviewError(null);
+  }
+
+  function handleCandidateTypeChange(id: string, value: TransactionType) {
+    setCandidateDrafts((currentCandidates) =>
+      currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, type: value } : candidate)),
+    );
+  }
+
+  function toggleRowSelection(table: SelectionTable, id: string) {
+    const setSelection = table === 'candidate' ? setSelectedCandidateIds : setSelectedConfirmedIds;
+    setSelection((currentSelection) =>
+      currentSelection.includes(id)
+        ? currentSelection.filter((selectedId) => selectedId !== id)
+        : [...currentSelection, id],
+    );
+  }
+
+  function toggleAllCandidates(checked: boolean) {
+    setSelectedCandidateIds(checked ? candidateDrafts.map((candidate) => candidate.id) : []);
+  }
+
+  function toggleAllConfirmed(checked: boolean) {
+    setSelectedConfirmedIds(checked ? sortedConfirmedTransactions.map((transaction) => transaction.id) : []);
+  }
+
+  function confirmSelectedCandidates() {
+    if (selectedCandidateIds.length === 0) {
+      return;
+    }
+
+    if (invalidSelectedCandidateIds.length > 0) {
+      setReviewError('Fix invalid selected amounts before confirming transactions.');
+      return;
+    }
+
+    const selectedIds = new Set(selectedCandidateIds);
+    const selectedDrafts = candidateDrafts.filter((candidate) => selectedIds.has(candidate.id));
+    const confirmedRows = selectedDrafts.map(draftToConfirmed);
+
+    setConfirmedTransactions((currentConfirmedTransactions) =>
+      [...currentConfirmedTransactions, ...confirmedRows].sort(compareConfirmedTransactions),
+    );
+    setCandidateDrafts((currentCandidates) => currentCandidates.filter((candidate) => !selectedIds.has(candidate.id)));
+    setSelectedCandidateIds([]);
+    setReviewError(null);
+  }
+
+  function returnSelectedConfirmed() {
+    if (selectedConfirmedIds.length === 0) {
+      return;
+    }
+
+    const selectedIds = new Set(selectedConfirmedIds);
+    const restoredCandidates = selectedConfirmedIds
+      .map((id) => originalCandidatesById.get(id))
+      .filter((candidate): candidate is TransactionCandidate => candidate !== undefined)
+      .map(candidateToDraft);
+
+    setCandidateDrafts((currentCandidates) =>
+      [...currentCandidates, ...restoredCandidates].sort((a, b) => a.lineNumber - b.lineNumber),
+    );
+    setConfirmedTransactions((currentTransactions) =>
+      currentTransactions.filter((transaction) => !selectedIds.has(transaction.id)),
+    );
+    setSelectedConfirmedIds([]);
+    setReviewError(null);
+  }
+
+  function resetReviewState() {
+    setCandidateDrafts([]);
+    setConfirmedTransactions([]);
+    setSelectedCandidateIds([]);
+    setSelectedConfirmedIds([]);
+    setReviewError(null);
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -112,6 +222,8 @@ export function App() {
         <StatusBanner tone="error" title={importError.title} message={importError.message} />
       ) : null}
 
+      {reviewError ? <StatusBanner tone="error" title="Review issue" message={reviewError} /> : null}
+
       {parseResult && status !== 'parsing' ? (
         <section className="import-section" aria-labelledby="import-title">
           <div className="section-header">
@@ -122,8 +234,8 @@ export function App() {
           <div className="import-summary">
             <SummaryItem label="Pages" value={String(parseResult.pageCount)} />
             <SummaryItem label="Text lines" value={String(parseResult.lineCount)} />
-            <SummaryItem label="Characters" value={String(parseResult.characterCount)} />
-            <SummaryItem label="Candidates" value={String(parseResult.candidates.length)} />
+            <SummaryItem label="Remaining" value={String(candidateDrafts.length)} />
+            <SummaryItem label="Confirmed" value={String(confirmedTransactions.length)} />
           </div>
 
           {parseResult.warnings.length > 0 ? (
@@ -166,46 +278,164 @@ export function App() {
       ) : null}
 
       <section className="transactions-section" aria-labelledby="transactions-title">
-        <div className="section-header">
-          <h2 id="transactions-title">Transaction Candidates</h2>
-          <span>{transactions.length} detected</span>
+        <div className="section-header table-toolbar">
+          <div>
+            <h2 id="transactions-title">Transaction Candidates</h2>
+            <span>{candidateDrafts.length} remaining</span>
+          </div>
+          <button type="button" onClick={confirmSelectedCandidates} disabled={selectedCandidateIds.length === 0}>
+            Confirm Selected
+          </button>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Type</th>
-              <th>Confidence</th>
-              <th className="amount-column">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.length === 0 ? (
+        <div className="table-scroll">
+          <table>
+            <thead>
               <tr>
-                <td className="empty-state" colSpan={5}>
-                  Upload a credit card statement PDF and confirm its source to review detected transaction candidates.
-                </td>
+                <th className="select-column">
+                  <input
+                    aria-label="Select all candidate transactions"
+                    type="checkbox"
+                    checked={candidateDrafts.length > 0 && selectedCandidateIds.length === candidateDrafts.length}
+                    onChange={(event) => toggleAllCandidates(event.target.checked)}
+                  />
+                </th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Confidence</th>
+                <th className="amount-column">Amount</th>
               </tr>
-            ) : (
-              transactions.map((transaction) => (
-                <tr key={transaction.id} title={transaction.originalText}>
-                  <td>{transaction.date}</td>
-                  <td>
-                    <div className="description-cell">
-                      <span>{transaction.description}</span>
-                      <small>Line {transaction.lineNumber}</small>
-                    </div>
+            </thead>
+            <tbody>
+              {candidateDrafts.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan={6}>
+                    Upload a PDF and confirm its source to review candidates, or return confirmed rows for more edits.
                   </td>
-                  <td>{transaction.type}</td>
-                  <td>{transaction.confidence}</td>
-                  <td className="amount-column">${transaction.amount.toFixed(2)}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                candidateDrafts.map((transaction) => (
+                  <tr key={transaction.id} title={transaction.originalText}>
+                    <td className="select-column">
+                      <input
+                        aria-label={`Select candidate line ${transaction.lineNumber}`}
+                        type="checkbox"
+                        checked={selectedCandidateIds.includes(transaction.id)}
+                        onChange={() => toggleRowSelection('candidate', transaction.id)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="table-input date-input"
+                        value={transaction.date}
+                        onChange={(event) => handleCandidateFieldChange(transaction.id, 'date', event.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <div className="description-cell">
+                        <input
+                          className="table-input description-input"
+                          value={transaction.description}
+                          onChange={(event) => handleCandidateFieldChange(transaction.id, 'description', event.target.value)}
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <select
+                        className="table-input type-select"
+                        value={transaction.type}
+                        onChange={(event) => handleCandidateTypeChange(transaction.id, event.target.value as TransactionType)}
+                      >
+                        {transactionTypes.map((transactionType) => (
+                          <option key={transactionType} value={transactionType}>
+                            {transactionType}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>{transaction.confidence}</td>
+                    <td className="amount-column">
+                      <input
+                        className={`table-input amount-input ${isValidAmount(transaction.amount) ? '' : 'input-invalid'}`}
+                        value={transaction.amount}
+                        onChange={(event) => handleCandidateFieldChange(transaction.id, 'amount', event.target.value)}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="transactions-section" aria-labelledby="confirmed-transactions-title">
+        <div className="section-header table-toolbar">
+          <div>
+            <h2 id="confirmed-transactions-title">Confirmed Transactions</h2>
+            <span>{confirmedTransactions.length} selected for import</span>
+          </div>
+          <button type="button" onClick={returnSelectedConfirmed} disabled={selectedConfirmedIds.length === 0}>
+            Return Selected
+          </button>
+        </div>
+
+        <div className="table-scroll confirmed-table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th className="select-column">
+                  <input
+                    aria-label="Select all confirmed transactions"
+                    type="checkbox"
+                    checked={
+                      sortedConfirmedTransactions.length > 0 &&
+                      selectedConfirmedIds.length === sortedConfirmedTransactions.length
+                    }
+                    onChange={(event) => toggleAllConfirmed(event.target.checked)}
+                  />
+                </th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Confidence</th>
+                <th className="amount-column">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedConfirmedTransactions.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan={6}>
+                    Confirm selected candidates to build the temporary transaction list.
+                  </td>
+                </tr>
+              ) : (
+                sortedConfirmedTransactions.map((transaction) => (
+                  <tr key={transaction.id} title={transaction.originalText}>
+                    <td className="select-column">
+                      <input
+                        aria-label={`Select confirmed line ${transaction.lineNumber}`}
+                        type="checkbox"
+                        checked={selectedConfirmedIds.includes(transaction.id)}
+                        onChange={() => toggleRowSelection('confirmed', transaction.id)}
+                      />
+                    </td>
+                    <td>{transaction.date}</td>
+                    <td>
+                      <div className="description-cell">
+                        <span>{transaction.description}</span>
+                      </div>
+                    </td>
+                    <td>{transaction.type}</td>
+                    <td>{transaction.confidence}</td>
+                    <td className="amount-column">${transaction.amount.toFixed(2)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {parseResult ? (
@@ -249,6 +479,34 @@ function TextPanel({ title, text }: { title: string; text: string }) {
       <pre>{text}</pre>
     </div>
   );
+}
+
+function candidateToDraft(candidate: TransactionCandidate): CandidateDraft {
+  return {
+    ...candidate,
+    amount: candidate.amount.toFixed(2),
+  };
+}
+
+function draftToConfirmed(candidate: CandidateDraft): ConfirmedTransaction {
+  return {
+    ...candidate,
+    amount: parseAmount(candidate.amount),
+  };
+}
+
+function compareConfirmedTransactions(a: ConfirmedTransaction, b: ConfirmedTransaction): number {
+  const dateComparison = a.date.localeCompare(b.date);
+  return dateComparison === 0 ? a.lineNumber - b.lineNumber : dateComparison;
+}
+
+function isValidAmount(value: string): boolean {
+  const amount = parseAmount(value);
+  return Number.isFinite(amount) && amount > 0;
+}
+
+function parseAmount(value: string): number {
+  return Number(value.replace(/[$,\s]/g, ''));
 }
 
 function sourceValue(value: string): string {
