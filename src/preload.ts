@@ -1,2 +1,12 @@
-// See the Electron documentation for details on how to use preload scripts:
-// https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+import { contextBridge, ipcRenderer } from 'electron';
+import type { PdfParseResult } from './pdfImport';
+
+export type ExpenseTrackerApi = {
+  parsePdfStatement: (fileName: string, data: ArrayBuffer) => Promise<PdfParseResult>;
+};
+
+const api: ExpenseTrackerApi = {
+  parsePdfStatement: (fileName, data) => ipcRenderer.invoke('pdf:parse-statement', { fileName, data }),
+};
+
+contextBridge.exposeInMainWorld('expenseTracker', api);
