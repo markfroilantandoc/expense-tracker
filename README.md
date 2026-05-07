@@ -11,12 +11,13 @@ The app should prioritize end-to-end usefulness over perfect abstractions. The m
 ## Current Scope
 
 - Credit card and bank statements
-- PDF statement import only
+- PDF statement import from selectable-text PDFs
 - Local desktop app only
-- Local file-based persistence
+- In-memory import review only
 - No backend, server, cloud sync, auth, or remote database
 - No receipt scanning
-- No budgeting features yet
+- No persistence yet
+- No budgeting reports yet
 
 ## Local Persistence
 
@@ -64,26 +65,53 @@ Examples:
 - Refund or cashback = `income`
 - Credit card payment or transfer between accounts = `transfer`
 
+Transactions also carry user-facing categorization fields for analysis:
+
+- `categoryGroup`: high-level reporting bucket
+- `category`: second-level category within the selected group
+
+Current category groups:
+
+- `Fixed Expenses`: Housing, Utilities, Grocery, Transportation, Other
+- `Discretionary Expenses`: Food, Shopping, Subscription, Other
+- `Savings`: Stocks, Interest Account, Other
+- `Income`: Salary, Interest, Repayment, Other
+- `Transfer`: Transfer
+
+These category fields coexist with `type`. The `type` field is for accounting semantics; category group and category are for user analysis.
+
 ## Current App State
 
-The Electron scaffold was created from `create-electron-app` with the Vite TypeScript template.
+The current app implements the first local import and review workflow:
 
-The renderer has been converted to React 18.
+- PDF statement upload
+- PDF text extraction through the Electron main/preload bridge
+- Best-effort source detection for issuer, account, and statement period
+- Source confirmation before transaction review
+- Generic transaction candidate detection from extracted text
+- Editable candidate rows for date, description, type, amount, category group, and category
+- Built-in keyword-based auto-categorization
+- Multi-select candidate confirmation
+- Separate Confirmed Transactions table
+- Return selected confirmed transactions back to candidates
+- Parser diagnostics showing extracted text and candidate lines
 
-The current UI includes:
+Current limitations:
 
-- App title
-- PDF statement upload button
-- Empty transaction table placeholder
-
-The upload button currently opens a file picker only. PDF parsing, transaction extraction, account selection, and local persistence are not implemented yet.
+- No persistence; confirmed transactions are temporary in-memory state.
+- No duplicate detection.
+- No account creation or saved account model.
+- No OCR; scanned/image-only PDFs are not supported yet.
+- Parsing is generic and conservative, not issuer-specific.
 
 ## Project Structure
 
 - `src/main.ts`: Electron main process. Creates the desktop `BrowserWindow` and loads the Vite renderer.
-- `src/preload.ts`: Electron preload script. Currently empty; this is where safe main/renderer APIs should be exposed later.
+- `src/preload.ts`: Electron preload script. Exposes safe renderer APIs backed by IPC.
 - `src/renderer.tsx`: React renderer entry point.
-- `src/App.tsx`: Current homepage UI.
+- `src/App.tsx`: Import, source confirmation, candidate review, confirmed transaction workflow, and review UI state.
+- `src/pdfImport.ts`: PDF text extraction, source detection, generic transaction candidate parsing, and normalization.
+- `src/categories.ts`: Category hierarchy and built-in keyword rules for auto-categorization.
 - `src/index.css`: Renderer styles.
 - `index.html`: Renderer HTML shell with the React root element.
 - `forge.config.ts`: Electron Forge configuration, including Vite build targets and packaging options.
@@ -133,13 +161,10 @@ Verified status:
 
 ## Suggested Next Step
 
-Implement the first import flow:
+Recommended next thin slices:
 
-1. User selects a PDF statement.
-2. App captures the selected file metadata.
-3. User selects or creates the source account for the statement.
-4. UI shows an uploaded statement state.
-5. Add PDF text extraction as the next separate step.
-6. Convert extracted rows into normalized draft transactions.
-7. Let the user review and correct draft transactions before saving.
-8. Save accepted transactions to local JSON files and update account balances.
+1. Add local JSON persistence for accounts, imports, confirmed transactions, and category rules.
+2. Let users create/select the source account before saving an import.
+3. Save confirmed transactions and reload them across launches.
+4. Add duplicate detection using import metadata and transaction fingerprints.
+5. Start learning category rules from user corrections once `categories.json` exists.
