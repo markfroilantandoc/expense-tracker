@@ -1,4 +1,11 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
+import {
+  categoriesByGroup,
+  categoryGroups,
+  getDefaultCategory,
+  suggestCategory,
+  type CategoryGroup,
+} from './categories';
 import type { ExpenseTrackerApi } from './preload';
 import type { PdfParseResult, StatementSource, TransactionCandidate, TransactionType } from './pdfImport';
 
@@ -15,11 +22,16 @@ type ImportError = {
   message: string;
 };
 
-type CandidateDraft = Omit<TransactionCandidate, 'amount'> & {
+type CategorizedTransaction = TransactionCandidate & {
+  categoryGroup: CategoryGroup;
+  category: string;
+};
+
+type CandidateDraft = Omit<CategorizedTransaction, 'amount'> & {
   amount: string;
 };
 
-type ConfirmedTransaction = TransactionCandidate;
+type ConfirmedTransaction = CategorizedTransaction;
 
 type SelectionTable = 'candidate' | 'confirmed';
 
@@ -132,6 +144,26 @@ export function App() {
   function handleCandidateTypeChange(id: string, value: TransactionType) {
     setCandidateDrafts((currentCandidates) =>
       currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, type: value } : candidate)),
+    );
+  }
+
+  function handleCandidateCategoryGroupChange(id: string, value: CategoryGroup) {
+    setCandidateDrafts((currentCandidates) =>
+      currentCandidates.map((candidate) =>
+        candidate.id === id
+          ? {
+              ...candidate,
+              categoryGroup: value,
+              category: getDefaultCategory(value),
+            }
+          : candidate,
+      ),
+    );
+  }
+
+  function handleCandidateCategoryChange(id: string, value: string) {
+    setCandidateDrafts((currentCandidates) =>
+      currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, category: value } : candidate)),
     );
   }
 
@@ -303,14 +335,15 @@ export function App() {
                 <th>Date</th>
                 <th>Description</th>
                 <th>Type</th>
-                <th>Confidence</th>
+                <th>Group</th>
+                <th>Category</th>
                 <th className="amount-column">Amount</th>
               </tr>
             </thead>
             <tbody>
               {candidateDrafts.length === 0 ? (
                 <tr>
-                  <td className="empty-state" colSpan={6}>
+                  <td className="empty-state" colSpan={7}>
                     Upload a PDF and confirm its source to review candidates, or return confirmed rows for more edits.
                   </td>
                 </tr>
@@ -354,7 +387,34 @@ export function App() {
                         ))}
                       </select>
                     </td>
-                    <td>{transaction.confidence}</td>
+                    <td>
+                      <select
+                        className="table-input category-group-select"
+                        value={transaction.categoryGroup}
+                        onChange={(event) =>
+                          handleCandidateCategoryGroupChange(transaction.id, event.target.value as CategoryGroup)
+                        }
+                      >
+                        {categoryGroups.map((categoryGroup) => (
+                          <option key={categoryGroup} value={categoryGroup}>
+                            {categoryGroup}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className="table-input category-select"
+                        value={transaction.category}
+                        onChange={(event) => handleCandidateCategoryChange(transaction.id, event.target.value)}
+                      >
+                        {categoriesByGroup[transaction.categoryGroup].map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="amount-column">
                       <input
                         className={`table-input amount-input ${isValidAmount(transaction.amount) ? '' : 'input-invalid'}`}
@@ -399,14 +459,15 @@ export function App() {
                 <th>Date</th>
                 <th>Description</th>
                 <th>Type</th>
-                <th>Confidence</th>
+                <th>Group</th>
+                <th>Category</th>
                 <th className="amount-column">Amount</th>
               </tr>
             </thead>
             <tbody>
               {sortedConfirmedTransactions.length === 0 ? (
                 <tr>
-                  <td className="empty-state" colSpan={6}>
+                  <td className="empty-state" colSpan={7}>
                     Confirm selected candidates to build the temporary transaction list.
                   </td>
                 </tr>
@@ -428,7 +489,8 @@ export function App() {
                       </div>
                     </td>
                     <td>{transaction.type}</td>
-                    <td>{transaction.confidence}</td>
+                    <td>{transaction.categoryGroup}</td>
+                    <td>{transaction.category}</td>
                     <td className="amount-column">${transaction.amount.toFixed(2)}</td>
                   </tr>
                 ))
@@ -482,9 +544,13 @@ function TextPanel({ title, text }: { title: string; text: string }) {
 }
 
 function candidateToDraft(candidate: TransactionCandidate): CandidateDraft {
+  const suggestedCategory = suggestCategory(candidate.description, candidate.type);
+
   return {
     ...candidate,
     amount: candidate.amount.toFixed(2),
+    categoryGroup: suggestedCategory.group,
+    category: suggestedCategory.name,
   };
 }
 

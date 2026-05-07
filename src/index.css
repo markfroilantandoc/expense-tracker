@@ -212,7 +212,7 @@ button:disabled {
 }
 
 .transactions-section table {
-  min-width: 920px;
+  min-width: 1180px;
 }
 
 .transactions-section table thead th {
@@ -324,6 +324,14 @@ th {
   min-width: 98px;
 }
 
+.category-group-select {
+  min-width: 164px;
+}
+
+.category-select {
+  min-width: 132px;
+}
+
 .amount-input {
   min-width: 86px;
   text-align: right;
@@ -416,6 +424,6 @@ th {
   }
 
   table {
-    min-width: 860px;
+    min-width: 1180px;
   }
 }
