@@ -1,5 +1,6 @@
-import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
 import { type CategoryGroup } from '../../domain/categories';
+import { createEmptySavedReviewData, type SavedReviewData } from '../../domain/persistence';
 import { confirmSource, emptySource, sourceValue, type PdfParseResult, type StatementSource } from '../../domain/statements';
 import {
   candidateToDraft,
@@ -15,6 +16,7 @@ import {
 } from '../../domain/transactions';
 
 export type ImportStatus = 'idle' | 'parsing' | 'confirming' | 'parsed' | 'error';
+export type PersistenceStatus = 'idle' | 'loading' | 'saving' | 'error';
 
 type ImportError = {
   title: string;
@@ -34,6 +36,38 @@ export function useImportReview() {
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [selectedConfirmedIds, setSelectedConfirmedIds] = useState<string[]>([]);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [savedReviewData, setSavedReviewData] = useState<SavedReviewData>(createEmptySavedReviewData);
+  const [persistenceStatus, setPersistenceStatus] = useState<PersistenceStatus>('loading');
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadSavedData() {
+      setPersistenceStatus('loading');
+
+      try {
+        const data = await window.expenseTracker.loadSavedReviewData();
+        if (isActive) {
+          setSavedReviewData(data);
+          setPersistenceError(null);
+          setPersistenceStatus('idle');
+        }
+      } catch (error) {
+        if (isActive) {
+          setPersistenceError(error instanceof Error ? error.message : 'Could not load saved review data.');
+          setPersistenceStatus('error');
+        }
+      }
+    }
+
+    loadSavedData();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const originalCandidatesById = useMemo(
     () => new Map((parseResult?.candidates ?? []).map((candidate) => [candidate.id, candidate])),
@@ -73,6 +107,7 @@ export function useImportReview() {
     setParseResult(null);
     setConfirmedSource(null);
     setImportError(null);
+    setSaveMessage(null);
     resetReviewState();
 
     try {
@@ -174,6 +209,7 @@ export function useImportReview() {
     setCandidateDrafts((currentCandidates) => currentCandidates.filter((candidate) => !selectedIds.has(candidate.id)));
     setSelectedCandidateIds([]);
     setReviewError(null);
+    setSaveMessage(null);
   }
 
   function returnSelectedConfirmed() {
@@ -195,6 +231,34 @@ export function useImportReview() {
     );
     setSelectedConfirmedIds([]);
     setReviewError(null);
+    setSaveMessage(null);
+  }
+
+  async function saveCurrentReviewedImport() {
+    if (!parseResult || !confirmedSource || confirmedTransactions.length === 0) {
+      return;
+    }
+
+    setPersistenceStatus('saving');
+    setPersistenceError(null);
+    setSaveMessage(null);
+
+    try {
+      const nextData = await window.expenseTracker.saveReviewedImport({
+        fileName: parseResult.fileName,
+        source: confirmedSource,
+        transactions: confirmedTransactions,
+      });
+
+      setSavedReviewData(nextData);
+      setConfirmedTransactions([]);
+      setSelectedConfirmedIds([]);
+      setSaveMessage(`Saved ${confirmedTransactions.length} transactions from ${parseResult.fileName}.`);
+      setPersistenceStatus('idle');
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : 'Could not save reviewed import.');
+      setPersistenceStatus('error');
+    }
   }
 
   function resetReviewState() {
@@ -217,6 +281,10 @@ export function useImportReview() {
     selectedCandidateIds,
     selectedConfirmedIds,
     reviewError,
+    savedReviewData,
+    persistenceStatus,
+    persistenceError,
+    saveMessage,
     handleFileChange,
     handleSourceChange,
     handleSourceConfirmation,
@@ -229,5 +297,6 @@ export function useImportReview() {
     toggleAllConfirmed,
     confirmSelectedCandidates,
     returnSelectedConfirmed,
+    saveCurrentReviewedImport,
   };
 }

@@ -13,26 +13,36 @@ The app should prioritize end-to-end usefulness over perfect abstractions. The m
 - Credit card and bank statements
 - PDF statement import from selectable-text PDFs
 - Local desktop app only
-- In-memory import review only
+- In-memory import review with local save after review
+- Local JSON persistence for reviewed imports and confirmed transactions
 - No backend, server, cloud sync, auth, or remote database
 - No receipt scanning
-- No persistence yet
 - No budgeting reports yet
 
 ## Local Persistence
 
-No backend means the app does not require a server, cloud service, auth system, or remote database. User data can still be saved locally on disk by the Electron main process.
+No backend means the app does not require a server, cloud service, auth system, or remote database. Reviewed import data is saved locally on disk by the Electron main process.
 
-For the first persistent version, store app data as local JSON files under Electron's app user data directory. This keeps the app simple, inspectable, and fully local-first while still remembering imported expenses, account balances, import history, and user corrections across launches.
+The current persistent version stores reviewed imports and confirmed transactions in `review-data.json` under Electron's app user data directory. On Windows during development, that resolves to a path like:
 
-Suggested local files:
+```text
+C:\Users\<user>\AppData\Roaming\expense-tracker\review-data.json
+```
 
-- `accounts.json`: account names, account types, opening balances, and current known balances
-- `transactions.json`: normalized imported transactions
-- `imports.json`: imported statement metadata, source account, import date, and duplicate tracking hints
-- `categories.json`: optional future category rules and user corrections
+The file uses a simple flat shape:
+
+- `version`: persistence format version
+- `imports`: reviewed import metadata, source snapshot, save timestamp, and saved transaction ids
+- `transactions`: top-level normalized transaction records shared across imports
+
+Keeping `transactions` top-level makes future year, quarter, month, category, and source analysis straightforward. `importId` and import-level `transactionIds` preserve provenance without nesting transactions under imports.
 
 The renderer should not access the filesystem directly. Use `src/electron/preload.ts` to expose safe renderer APIs backed by filesystem reads and writes in the Electron main process.
+
+Future local files may include:
+
+- `accounts.json`: account names, account types, opening balances, and current known balances
+- `categories.json`: category rules and user corrections
 
 ## Account Model
 
@@ -94,19 +104,23 @@ The current app implements the first local import and review workflow:
 - Multi-select candidate confirmation
 - Separate Confirmed Transactions table
 - Return selected confirmed transactions back to candidates
+- Save reviewed imports locally
+- Reload saved transactions across launches
+- Saved Transactions table backed by `review-data.json`
 - Parser diagnostics showing extracted text and candidate lines
 
 Current limitations:
 
-- No persistence; confirmed transactions are temporary in-memory state.
+- In-progress candidate drafts are not persisted.
 - No duplicate detection.
 - No account creation or saved account model.
+- No edit/delete workflow for saved transactions or saved imports.
 - No OCR; scanned/image-only PDFs are not supported yet.
 - Parsing is generic and conservative, not issuer-specific.
 
 ## Project Structure
 
-- `src/electron/`: Desktop-side Electron code. This is where the app creates windows, owns IPC handlers, and exposes safe APIs to the renderer through the preload script. Future local file persistence should live behind this layer.
+- `src/electron/`: Desktop-side Electron code. This is where the app creates windows, owns IPC handlers, exposes safe APIs to the renderer through the preload script, and owns local JSON persistence.
 - `src/renderer/`: React UI code. This is the part of the app the user sees and clicks: screens, forms, tables, styling, and UI workflow hooks. It should call safe APIs exposed by Electron instead of importing Electron or filesystem APIs directly.
 - `src/domain/`: Shared app concepts and pure business logic. Transaction types, statement/source types, category rules, validation helpers, and sorting/conversion helpers live here so they can be reused by the parser, UI, and future persistence/reporting features.
 - `src/pdf/`: PDF-specific import logic. This layer extracts selectable PDF text, detects statement metadata, and converts statement lines into domain transaction candidates.
@@ -154,8 +168,8 @@ Verified status:
 
 Recommended next thin slices:
 
-1. Add local JSON persistence for accounts, imports, confirmed transactions, and category rules.
+1. Add duplicate detection using import metadata and transaction fingerprints.
 2. Let users create/select the source account before saving an import.
-3. Save confirmed transactions and reload them across launches.
-4. Add duplicate detection using import metadata and transaction fingerprints.
+3. Add edit/delete workflows for saved transactions and imports.
+4. Add local JSON persistence for accounts and category rules.
 5. Start learning category rules from user corrections once `categories.json` exists.

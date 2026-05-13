@@ -1,5 +1,6 @@
 import { ConfirmedTransactionsTable } from './components/ConfirmedTransactionsTable';
 import { ParserDiagnostics } from './components/ParserDiagnostics';
+import { SavedTransactionsTable } from './components/SavedTransactionsTable';
 import { SourceConfirmationForm } from './components/SourceConfirmationForm';
 import { StatusBanner } from './components/StatusBanner';
 import { SummaryItem } from './components/SummaryItem';
@@ -36,6 +37,12 @@ export function App() {
       ) : null}
 
       {review.reviewError ? <StatusBanner tone="error" title="Review issue" message={review.reviewError} /> : null}
+
+      {review.persistenceError ? (
+        <StatusBanner tone="error" title="Persistence issue" message={review.persistenceError} />
+      ) : null}
+
+      {review.saveMessage ? <StatusBanner tone="info" title="Saved import" message={review.saveMessage} /> : null}
 
       {review.parseResult && review.status !== 'parsing' ? (
         <section className="import-section" aria-labelledby="import-title">
@@ -92,9 +99,22 @@ export function App() {
       <ConfirmedTransactionsTable
         transactions={review.sortedConfirmedTransactions}
         selectedIds={review.selectedConfirmedIds}
+        canSave={
+          Boolean(review.parseResult && review.confirmedSource) &&
+          review.confirmedTransactions.length > 0 &&
+          review.persistenceStatus !== 'loading'
+        }
+        isSaving={review.persistenceStatus === 'saving'}
         onReturnSelected={review.returnSelectedConfirmed}
+        onSaveReviewedImport={review.saveCurrentReviewedImport}
         onToggleAll={review.toggleAllConfirmed}
         onToggleRow={(id) => review.toggleRowSelection('confirmed', id)}
+      />
+
+      <SavedTransactionsTable
+        transactions={review.savedReviewData.transactions}
+        importCount={review.savedReviewData.imports.length}
+        isLoading={review.persistenceStatus === 'loading'}
       />
 
       {review.parseResult ? <ParserDiagnostics parseResult={review.parseResult} /> : null}

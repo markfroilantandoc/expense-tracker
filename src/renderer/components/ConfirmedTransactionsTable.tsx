@@ -3,7 +3,10 @@ import type { ConfirmedTransaction } from '../../domain/transactions';
 type ConfirmedTransactionsTableProps = {
   transactions: ConfirmedTransaction[];
   selectedIds: string[];
+  canSave: boolean;
+  isSaving: boolean;
   onReturnSelected: () => void;
+  onSaveReviewedImport: () => void;
   onToggleAll: (checked: boolean) => void;
   onToggleRow: (id: string) => void;
 };
@@ -11,7 +14,10 @@ type ConfirmedTransactionsTableProps = {
 export function ConfirmedTransactionsTable({
   transactions,
   selectedIds,
+  canSave,
+  isSaving,
   onReturnSelected,
+  onSaveReviewedImport,
   onToggleAll,
   onToggleRow,
 }: ConfirmedTransactionsTableProps) {
@@ -20,11 +26,16 @@ export function ConfirmedTransactionsTable({
       <div className="section-header table-toolbar">
         <div>
           <h2 id="confirmed-transactions-title">Confirmed Transactions</h2>
-          <span>{transactions.length} selected for import</span>
+          <span>{transactions.length} ready to save</span>
         </div>
-        <button type="button" onClick={onReturnSelected} disabled={selectedIds.length === 0}>
-          Return Selected
-        </button>
+        <div className="toolbar-actions">
+          <button type="button" onClick={onReturnSelected} disabled={selectedIds.length === 0 || isSaving}>
+            Return Selected
+          </button>
+          <button type="button" onClick={onSaveReviewedImport} disabled={!canSave || isSaving}>
+            {isSaving ? 'Saving...' : 'Save Reviewed Import'}
+          </button>
+        </div>
       </div>
 
       <div className="table-scroll confirmed-table-scroll">
