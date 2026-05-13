@@ -1,16 +1,19 @@
+import type { Account } from '../../domain/accounts';
 import type { SavedTransaction } from '../../domain/persistence';
 
 type SavedTransactionsTableProps = {
   transactions: SavedTransaction[];
+  accounts: Account[];
   importCount: number;
   isLoading: boolean;
 };
 
-export function SavedTransactionsTable({ transactions, importCount, isLoading }: SavedTransactionsTableProps) {
+export function SavedTransactionsTable({ transactions, accounts, importCount, isLoading }: SavedTransactionsTableProps) {
   const sortedTransactions = [...transactions].sort((a, b) => {
     const dateComparison = a.date.localeCompare(b.date);
     return dateComparison === 0 ? a.description.localeCompare(b.description) : dateComparison;
   });
+  const accountsById = new Map(accounts.map((account) => [account.id, account]));
 
   return (
     <section className="transactions-section" aria-labelledby="saved-transactions-title">
@@ -56,8 +59,8 @@ export function SavedTransactionsTable({ transactions, importCount, isLoading }:
                   </td>
                   <td>
                     <div className="source-cell">
-                      <span>{transaction.source.issuer}</span>
-                      <small>{transaction.source.account}</small>
+                      <span>{accountsById.get(transaction.accountId)?.name ?? 'Unknown account'}</span>
+                      <small>{transaction.source.issuer}</small>
                     </div>
                   </td>
                   <td>{transaction.type}</td>

@@ -1,13 +1,22 @@
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  emptyAccountDraft,
+  type Account,
+  type AccountDraft,
+  type AccountType,
+} from '../../domain/accounts';
 import { type CategoryGroup } from '../../domain/categories';
 import { createEmptySavedReviewData, type SavedReviewData } from '../../domain/persistence';
-import { confirmSource, emptySource, sourceValue, type PdfParseResult, type StatementSource } from '../../domain/statements';
+import { sourceValue, type PdfParseResult, type StatementSource } from '../../domain/statements';
 import {
   candidateToDraft,
   compareCandidateDraftsByLine,
   compareConfirmedTransactions,
   draftToConfirmed,
+  getManualTransactionDraft,
+  isValidCurrencyAmount,
   isValidAmount,
+  parseAmount,
   updateDraftCategoryGroup,
   type CandidateDraft,
   type ConfirmedTransaction,
@@ -28,11 +37,17 @@ type SelectionTable = 'candidate' | 'confirmed';
 export function useImportReview() {
   const [status, setStatus] = useState<ImportStatus>('idle');
   const [parseResult, setParseResult] = useState<PdfParseResult | null>(null);
-  const [sourceForm, setSourceForm] = useState<StatementSource>(emptySource);
   const [confirmedSource, setConfirmedSource] = useState<StatementSource | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [accountDraft, setAccountDraft] = useState<AccountDraft>(emptyAccountDraft);
+  const [statementStartDate, setStatementStartDate] = useState('');
+  const [statementEndDate, setStatementEndDate] = useState('');
+  const [statementOpeningBalance, setStatementOpeningBalance] = useState('');
+  const [statementEndingBalance, setStatementEndingBalance] = useState('');
   const [importError, setImportError] = useState<ImportError | null>(null);
   const [candidateDrafts, setCandidateDrafts] = useState<CandidateDraft[]>([]);
   const [confirmedTransactions, setConfirmedTransactions] = useState<ConfirmedTransaction[]>([]);
+  const [manualTransactionDraft, setManualTransactionDraft] = useState<CandidateDraft>(getManualTransactionDraft);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [selectedConfirmedIds, setSelectedConfirmedIds] = useState<string[]>([]);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -84,6 +99,14 @@ export function useImportReview() {
     () => [...confirmedTransactions].sort(compareConfirmedTransactions),
     [confirmedTransactions],
   );
+  const selectedAccount = useMemo(
+    () => savedReviewData.accounts.find((account) => account.id === selectedAccountId) ?? null,
+    [savedReviewData.accounts, selectedAccountId],
+  );
+  const reconciliation = useMemo(
+    () => getReconciliation(selectedAccount, statementOpeningBalance, statementEndingBalance, confirmedTransactions),
+    [confirmedTransactions, selectedAccount, statementEndingBalance, statementOpeningBalance],
+  );
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -116,10 +139,10 @@ export function useImportReview() {
 
       setParseResult(result);
       setCandidateDrafts(result.candidates.map(candidateToDraft));
-      setSourceForm({
+      setAccountDraft({
+        ...emptyAccountDraft,
+        name: [sourceValue(result.source.issuer), sourceValue(result.source.account)].filter(Boolean).join(' '),
         issuer: sourceValue(result.source.issuer),
-        account: sourceValue(result.source.account),
-        statementPeriod: sourceValue(result.source.statementPeriod),
       });
       setStatus('confirming');
     } catch (error) {
@@ -131,17 +154,102 @@ export function useImportReview() {
     }
   }
 
-  function handleSourceChange(field: keyof StatementSource, value: string) {
-    setSourceForm((currentSource) => ({
-      ...currentSource,
+  function handleSelectedAccountChange(value: string) {
+    setSelectedAccountId(value);
+    setReviewError(null);
+  }
+
+  function handleAccountDraftChange(field: keyof AccountDraft, value: string) {
+    setAccountDraft((currentDraft) => ({
+      ...currentDraft,
       [field]: value,
     }));
+    setReviewError(null);
+  }
+
+  function handleAccountTypeChange(value: AccountType) {
+    setAccountDraft((currentDraft) => ({
+      ...currentDraft,
+      type: value,
+    }));
+  }
+
+  async function createAccountFromDraft() {
+    if (!accountDraft.name.trim()) {
+      setReviewError('Account name is required.');
+      return;
+    }
+
+    if (!isValidCurrencyAmount(accountDraft.openingBalance)) {
+      setReviewError('Opening balance must be a number.');
+      return;
+    }
+
+    setPersistenceStatus('saving');
+    setPersistenceError(null);
+
+    try {
+      const nextData = await window.expenseTracker.createAccount(accountDraft);
+      const newestAccount = nextData.accounts[nextData.accounts.length - 1];
+      setSavedReviewData(nextData);
+      setSelectedAccountId(newestAccount?.id ?? '');
+      setAccountDraft(emptyAccountDraft);
+      setPersistenceStatus('idle');
+      setReviewError(null);
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : 'Could not create account.');
+      setPersistenceStatus('error');
+    }
+  }
+
+  function handleStatementOpeningBalanceChange(value: string) {
+    setStatementOpeningBalance(value);
+    setReviewError(null);
+  }
+
+  function handleStatementStartDateChange(value: string) {
+    setStatementStartDate(value);
+    setReviewError(null);
+  }
+
+  function handleStatementEndDateChange(value: string) {
+    setStatementEndDate(value);
+    setReviewError(null);
+  }
+
+  function handleStatementEndingBalanceChange(value: string) {
+    setStatementEndingBalance(value);
+    setReviewError(null);
   }
 
   function handleSourceConfirmation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setConfirmedSource(confirmSource(sourceForm));
+    if (!selectedAccountId) {
+      setReviewError('Choose or create an account before confirming the source.');
+      return;
+    }
+
+    if (!selectedAccount) {
+      setReviewError('Choose or create an account before confirming the source.');
+      return;
+    }
+
+    if (!statementStartDate || !statementEndDate) {
+      setReviewError('Enter the statement start and end dates before confirming the source.');
+      return;
+    }
+
+    if (!isValidCurrencyAmount(statementOpeningBalance) || !isValidCurrencyAmount(statementEndingBalance)) {
+      setReviewError('Enter statement opening and ending balances before confirming the source.');
+      return;
+    }
+
+    setConfirmedSource({
+      issuer: selectedAccount.issuer || selectedAccount.name,
+      account: selectedAccount.lastDigits ? `Ending ${selectedAccount.lastDigits}` : selectedAccount.name,
+      statementPeriod: `${statementStartDate} to ${statementEndDate}`,
+    });
     setStatus('parsed');
   }
 
@@ -170,6 +278,54 @@ export function useImportReview() {
     setCandidateDrafts((currentCandidates) =>
       currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, category: value } : candidate)),
     );
+  }
+
+  function handleManualTransactionFieldChange(field: keyof CandidateDraft, value: string) {
+    setManualTransactionDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    setReviewError(null);
+  }
+
+  function handleManualTransactionTypeChange(value: TransactionType) {
+    setManualTransactionDraft((currentDraft) => ({ ...currentDraft, type: value }));
+  }
+
+  function handleManualTransactionCategoryGroupChange(value: CategoryGroup) {
+    setManualTransactionDraft((currentDraft) => updateDraftCategoryGroup(currentDraft, value));
+  }
+
+  function handleManualTransactionCategoryChange(value: string) {
+    setManualTransactionDraft((currentDraft) => ({ ...currentDraft, category: value }));
+  }
+
+  function addManualTransaction() {
+    if (!manualTransactionDraft.date.trim()) {
+      setReviewError('Manual transaction date is required.');
+      return;
+    }
+
+    if (!manualTransactionDraft.description.trim()) {
+      setReviewError('Manual transaction description is required.');
+      return;
+    }
+
+    if (!isValidAmount(manualTransactionDraft.amount)) {
+      setReviewError('Manual transaction amount must be greater than zero.');
+      return;
+    }
+
+    const confirmedRow = draftToConfirmed({
+      ...manualTransactionDraft,
+      id: `manual_${Date.now()}`,
+      originalText: 'Manual transaction',
+      lineNumber: Number.MAX_SAFE_INTEGER,
+    });
+
+    setConfirmedTransactions((currentConfirmedTransactions) =>
+      [...currentConfirmedTransactions, confirmedRow].sort(compareConfirmedTransactions),
+    );
+    setManualTransactionDraft(getManualTransactionDraft());
+    setReviewError(null);
+    setSaveMessage(null);
   }
 
   function toggleRowSelection(table: SelectionTable, id: string) {
@@ -235,7 +391,12 @@ export function useImportReview() {
   }
 
   async function saveCurrentReviewedImport() {
-    if (!parseResult || !confirmedSource || confirmedTransactions.length === 0) {
+    if (!parseResult || !confirmedSource || !selectedAccount || confirmedTransactions.length === 0) {
+      return;
+    }
+
+    if (!reconciliation.canSave) {
+      setReviewError('Confirmed transactions must reconcile to the statement ending balance before saving.');
       return;
     }
 
@@ -247,6 +408,9 @@ export function useImportReview() {
       const nextData = await window.expenseTracker.saveReviewedImport({
         fileName: parseResult.fileName,
         source: confirmedSource,
+        accountId: selectedAccount.id,
+        statementOpeningBalance: getLedgerBalance(selectedAccount.type, parseAmount(statementOpeningBalance)),
+        statementEndingBalance: getLedgerBalance(selectedAccount.type, parseAmount(statementEndingBalance)),
         transactions: confirmedTransactions,
       });
 
@@ -264,19 +428,33 @@ export function useImportReview() {
   function resetReviewState() {
     setCandidateDrafts([]);
     setConfirmedTransactions([]);
+    setManualTransactionDraft(getManualTransactionDraft());
     setSelectedCandidateIds([]);
     setSelectedConfirmedIds([]);
     setReviewError(null);
+    setSelectedAccountId('');
+    setStatementStartDate('');
+    setStatementEndDate('');
+    setStatementOpeningBalance('');
+    setStatementEndingBalance('');
   }
 
   return {
     status,
     parseResult,
-    sourceForm,
     confirmedSource,
+    selectedAccountId,
+    selectedAccount,
+    accountDraft,
+    statementStartDate,
+    statementEndDate,
+    statementOpeningBalance,
+    statementEndingBalance,
+    reconciliation,
     importError,
     candidateDrafts,
     confirmedTransactions,
+    manualTransactionDraft,
     sortedConfirmedTransactions,
     selectedCandidateIds,
     selectedConfirmedIds,
@@ -286,12 +464,24 @@ export function useImportReview() {
     persistenceError,
     saveMessage,
     handleFileChange,
-    handleSourceChange,
+    handleSelectedAccountChange,
+    handleAccountDraftChange,
+    handleAccountTypeChange,
+    createAccountFromDraft,
+    handleStatementStartDateChange,
+    handleStatementEndDateChange,
+    handleStatementOpeningBalanceChange,
+    handleStatementEndingBalanceChange,
     handleSourceConfirmation,
     handleCandidateFieldChange,
     handleCandidateTypeChange,
     handleCandidateCategoryGroupChange,
     handleCandidateCategoryChange,
+    handleManualTransactionFieldChange,
+    handleManualTransactionTypeChange,
+    handleManualTransactionCategoryGroupChange,
+    handleManualTransactionCategoryChange,
+    addManualTransaction,
     toggleRowSelection,
     toggleAllCandidates,
     toggleAllConfirmed,
@@ -299,4 +489,49 @@ export function useImportReview() {
     returnSelectedConfirmed,
     saveCurrentReviewedImport,
   };
+}
+
+function getReconciliation(
+  account: Account | null,
+  openingBalance: string,
+  endingBalance: string,
+  transactions: ConfirmedTransaction[],
+) {
+  const parsedOpeningBalance = parseAmount(openingBalance);
+  const parsedEndingBalance = parseAmount(endingBalance);
+  const hasValidBalances = Number.isFinite(parsedOpeningBalance) && Number.isFinite(parsedEndingBalance);
+  const calculatedEndingBalance = hasValidBalances && account
+    ? roundCurrency(
+        transactions.reduce(
+          (balance, transaction) => balance + getSignedTransactionEffect(account.type, transaction),
+          getLedgerBalance(account.type, parsedOpeningBalance),
+        ),
+      )
+    : null;
+  const targetEndingBalance = account && hasValidBalances ? getLedgerBalance(account.type, parsedEndingBalance) : null;
+  const difference = calculatedEndingBalance === null || targetEndingBalance === null
+    ? null
+    : roundCurrency(targetEndingBalance - calculatedEndingBalance);
+
+  return {
+    calculatedEndingBalance,
+    difference,
+    canSave: Boolean(account && hasValidBalances && difference === 0 && transactions.length > 0),
+  };
+}
+
+function getSignedTransactionEffect(accountType: AccountType, transaction: ConfirmedTransaction): number {
+  if (accountType === 'credit_card') {
+    return transaction.type === 'expense' ? -transaction.amount : transaction.amount;
+  }
+
+  return transaction.type === 'income' ? transaction.amount : -transaction.amount;
+}
+
+function getLedgerBalance(accountType: AccountType, balanceInput: number): number {
+  return accountType === 'credit_card' ? -Math.abs(balanceInput) : balanceInput;
+}
+
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
 }

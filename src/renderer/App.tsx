@@ -111,8 +111,22 @@ export function App() {
 
               {review.status === 'confirming' ? (
                 <SourceConfirmationForm
-                  source={review.sourceForm}
-                  onChange={review.handleSourceChange}
+                  accounts={review.savedReviewData.accounts}
+                  selectedAccountId={review.selectedAccountId}
+                  accountDraft={review.accountDraft}
+                  statementStartDate={review.statementStartDate}
+                  statementEndDate={review.statementEndDate}
+                  statementOpeningBalance={review.statementOpeningBalance}
+                  statementEndingBalance={review.statementEndingBalance}
+                  isSaving={review.persistenceStatus === 'saving'}
+                  onSelectedAccountChange={review.handleSelectedAccountChange}
+                  onAccountDraftChange={review.handleAccountDraftChange}
+                  onAccountTypeChange={review.handleAccountTypeChange}
+                  onCreateAccount={review.createAccountFromDraft}
+                  onStatementStartDateChange={review.handleStatementStartDateChange}
+                  onStatementEndDateChange={review.handleStatementEndDateChange}
+                  onStatementOpeningBalanceChange={review.handleStatementOpeningBalanceChange}
+                  onStatementEndingBalanceChange={review.handleStatementEndingBalanceChange}
                   onSubmit={review.handleSourceConfirmation}
                 />
               ) : null}
@@ -120,8 +134,10 @@ export function App() {
               {review.status === 'parsed' && review.confirmedSource ? (
                 <div className="confirmed-source">
                   <span>{review.confirmedSource.issuer}</span>
-                  <span>Account {review.confirmedSource.account}</span>
+                  <span>{review.selectedAccount?.name ?? `Account ${review.confirmedSource.account}`}</span>
                   <span>{review.confirmedSource.statementPeriod}</span>
+                  <span>Opening {review.statementOpeningBalance}</span>
+                  <span>Ending {review.statementEndingBalance}</span>
                 </div>
               ) : null}
             </section>
@@ -157,13 +173,23 @@ export function App() {
 
           <ConfirmedTransactionsTable
             transactions={review.sortedConfirmedTransactions}
+            manualTransactionDraft={review.manualTransactionDraft}
             selectedIds={review.selectedConfirmedIds}
             canSave={
-              Boolean(review.parseResult && review.confirmedSource) &&
+              Boolean(review.parseResult && review.confirmedSource && review.selectedAccount) &&
               review.confirmedTransactions.length > 0 &&
+              review.reconciliation.canSave &&
               review.persistenceStatus !== 'loading'
             }
             isSaving={review.persistenceStatus === 'saving'}
+            isCreditCardAccount={review.selectedAccount?.type === 'credit_card'}
+            reconciliationDifference={review.reconciliation.difference}
+            calculatedEndingBalance={review.reconciliation.calculatedEndingBalance}
+            onManualFieldChange={review.handleManualTransactionFieldChange}
+            onManualTypeChange={review.handleManualTransactionTypeChange}
+            onManualCategoryGroupChange={review.handleManualTransactionCategoryGroupChange}
+            onManualCategoryChange={review.handleManualTransactionCategoryChange}
+            onAddManualTransaction={review.addManualTransaction}
             onReturnSelected={review.returnSelectedConfirmed}
             onSaveReviewedImport={review.saveCurrentReviewedImport}
             onToggleAll={review.toggleAllConfirmed}
@@ -175,6 +201,7 @@ export function App() {
       ) : (
         <SavedTransactionsTable
           transactions={review.savedReviewData.transactions}
+          accounts={review.savedReviewData.accounts}
           importCount={review.savedReviewData.imports.length}
           isLoading={review.persistenceStatus === 'loading'}
         />

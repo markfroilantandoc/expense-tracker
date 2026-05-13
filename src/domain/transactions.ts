@@ -52,6 +52,23 @@ export function updateDraftCategoryGroup(candidate: CandidateDraft, categoryGrou
   };
 }
 
+export function getManualTransactionDraft(): CandidateDraft {
+  const suggestedCategory = suggestCategory('', 'expense');
+
+  return {
+    id: 'manual_draft',
+    lineNumber: Number.MAX_SAFE_INTEGER,
+    originalText: 'Manual transaction',
+    date: '',
+    description: '',
+    type: 'expense',
+    amount: '',
+    confidence: 'medium',
+    categoryGroup: suggestedCategory.group,
+    category: suggestedCategory.name,
+  };
+}
+
 export function compareConfirmedTransactions(a: ConfirmedTransaction, b: ConfirmedTransaction): number {
   const dateComparison = a.date.localeCompare(b.date);
   return dateComparison === 0 ? a.lineNumber - b.lineNumber : dateComparison;
@@ -66,6 +83,11 @@ export function isValidAmount(value: string): boolean {
   return Number.isFinite(amount) && amount > 0;
 }
 
-function parseAmount(value: string): number {
+export function isValidCurrencyAmount(value: string): boolean {
+  const amount = parseAmount(value);
+  return Number.isFinite(amount);
+}
+
+export function parseAmount(value: string): number {
   return Number(value.replace(/[$,\s]/g, ''));
 }

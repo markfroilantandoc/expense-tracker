@@ -2,8 +2,9 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { parsePdfStatement } from '../pdf/pdfImport';
+import type { CreateAccountPayload } from '../domain/accounts';
 import type { SaveReviewedImportPayload } from '../domain/persistence';
-import { loadSavedReviewData, saveReviewedImport } from './reviewDataStore';
+import { createAccount, loadSavedReviewData, saveReviewedImport } from './reviewDataStore';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -19,6 +20,10 @@ ipcMain.handle('pdf:parse-statement', async (_event, payload: { fileName: string
 
 ipcMain.handle('review-data:load', async () => {
   return loadSavedReviewData();
+});
+
+ipcMain.handle('accounts:create', async (_event, payload: CreateAccountPayload) => {
+  return createAccount(payload);
 });
 
 ipcMain.handle('review-data:save-import', async (_event, payload: SaveReviewedImportPayload) => {

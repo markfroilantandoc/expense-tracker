@@ -14,7 +14,7 @@ The app should prioritize end-to-end usefulness over perfect abstractions. The m
 - PDF statement import from selectable-text PDFs
 - Local desktop app only
 - In-memory import review with local save after review
-- Local JSON persistence for reviewed imports and confirmed transactions
+- Local JSON persistence for accounts, reviewed imports, and confirmed transactions
 - No backend, server, cloud sync, auth, or remote database
 - No receipt scanning
 - No budgeting reports yet
@@ -23,7 +23,7 @@ The app should prioritize end-to-end usefulness over perfect abstractions. The m
 
 No backend means the app does not require a server, cloud service, auth system, or remote database. Reviewed import data is saved locally on disk by the Electron main process.
 
-The current persistent version stores reviewed imports and confirmed transactions in `review-data.json` under Electron's app user data directory. On Windows during development, that resolves to a path like:
+The current persistent version stores accounts, reviewed imports, and confirmed transactions in `review-data.json` under Electron's app user data directory. On Windows during development, that resolves to a path like:
 
 ```text
 C:\Users\<user>\AppData\Roaming\expense-tracker\review-data.json
@@ -32,21 +32,21 @@ C:\Users\<user>\AppData\Roaming\expense-tracker\review-data.json
 The file uses a simple flat shape:
 
 - `version`: persistence format version
-- `imports`: reviewed import metadata, source snapshot, save timestamp, and saved transaction ids
-- `transactions`: top-level normalized transaction records shared across imports
+- `accounts`: saved account records with name, type, issuer, optional last digits, and opening balance
+- `imports`: reviewed import metadata, account id, source snapshot, statement balances, save timestamp, and saved transaction ids
+- `transactions`: top-level normalized transaction records shared across imports; every saved transaction must have `accountId`
 
-Keeping `transactions` top-level makes future year, quarter, month, category, and source analysis straightforward. `importId` and import-level `transactionIds` preserve provenance without nesting transactions under imports.
+Keeping `transactions` top-level makes future year, quarter, month, category, account, and source analysis straightforward. `importId` and import-level `transactionIds` preserve provenance without nesting transactions under imports.
 
 The renderer should not access the filesystem directly. Use `src/electron/preload.ts` to expose safe renderer APIs backed by filesystem reads and writes in the Electron main process.
 
 Future local files may include:
 
-- `accounts.json`: account names, account types, opening balances, and current known balances
 - `categories.json`: category rules and user corrections
 
 ## Account Model
 
-Each imported statement should belong to an account.
+Each new imported statement must belong to a saved account. Account selection is the source of truth for new imports; parsed issuer/account text is only used as a hint when creating an account.
 
 Account types:
 
@@ -55,7 +55,23 @@ Account types:
 - `savings`
 - `other`
 
-Account balances can be tracked locally by combining a manually entered opening balance with saved transactions. Later, statement ending balances can be used for reconciliation.
+Accounts store a ledger-signed opening balance:
+
+- Asset accounts such as checking and savings are positive when money is available.
+- Credit card accounts are negative when money is owed.
+- In the import UI, credit card balance fields are entered as positive amounts owed and converted to negative ledger balances internally.
+
+Each new reviewed import requires statement start/end dates, a statement opening balance, and a statement ending balance. The app calculates the expected ending balance from confirmed transactions and blocks saving until the import reconciles.
+
+For credit cards:
+
+- `expense` decreases the balance, meaning more owed.
+- `income` and `transfer` increase the balance, meaning refunds, credits, or payments toward zero.
+
+For non-credit-card accounts:
+
+- `income` increases the balance.
+- `expense` and `transfer` decrease the balance.
 
 ## Transaction Model
 
@@ -97,12 +113,15 @@ The current app implements the first local import and review workflow:
 - PDF statement upload
 - PDF text extraction through the Electron main/preload bridge
 - Best-effort source detection for issuer, account, and statement period
-- Source confirmation before transaction review
+- Import source confirmation through saved account selection, statement dates, and statement balance entry
+- Inline account creation during import
+- Required reconciliation from statement opening balance to statement ending balance before save
 - Generic transaction candidate detection from extracted text
 - Editable candidate rows for date, description, type, amount, category group, and category
 - Built-in keyword-based auto-categorization
 - Multi-select candidate confirmation
 - Separate Confirmed Transactions table
+- Manual confirmed transaction entry for missing rows needed to reconcile
 - Return selected confirmed transactions back to candidates
 - Save reviewed imports locally
 - Reload saved transactions across launches
@@ -116,8 +135,9 @@ Current limitations:
 
 - In-progress candidate drafts are not persisted.
 - No duplicate detection.
-- No account creation or saved account model.
+- No dedicated accounts screen outside the import workflow.
 - No edit/delete workflow for saved transactions or saved imports.
+- This early data model intentionally treats imports and transactions without account ids as unsupported legacy data.
 - No OCR; scanned/image-only PDFs are not supported yet.
 - Parsing is generic and conservative, not issuer-specific.
 
@@ -152,8 +172,8 @@ npm run package
 Verified status:
 
 - `npm run lint` passes
-- `npm run package` passes
-- `npm run start` launches the Electron app
+- `npm run package` passed after the initial accounts implementation; the latest rerun after UX refinements was interrupted before completion
+- `npm run start` has not been rerun after the latest UX refinements
 
 ## Architecture Notes
 
@@ -164,7 +184,7 @@ Verified status:
 - Use the Electron preload layer for renderer access to filesystem or native APIs.
 - Keep transaction normalization explicit: positive `amount` plus semantic `type`.
 - Associate every imported transaction with a source account.
-- Treat balances as local state derived from opening balances plus saved transactions, with statement balances reserved for later reconciliation.
+- Treat balances as ledger-signed values. Use statement opening and ending balances to reconcile each new import before saving.
 - Build thin vertical slices before expanding abstractions.
 
 ## Suggested Next Step
@@ -172,7 +192,7 @@ Verified status:
 Recommended next thin slices:
 
 1. Add duplicate detection using import metadata and transaction fingerprints.
-2. Let users create/select the source account before saving an import.
+2. Add a dedicated Accounts screen for reviewing account balances and imported statement history.
 3. Add edit/delete workflows for saved transactions and imports.
-4. Add local JSON persistence for accounts and category rules.
+4. Add local JSON persistence for category rules.
 5. Start learning category rules from user corrections once `categories.json` exists.

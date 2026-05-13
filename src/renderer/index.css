@@ -240,11 +240,12 @@ button:disabled {
   border-top: 1px solid #edf1f6;
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 18px 20px 20px;
 }
 
-.source-form label {
+.source-form label,
+.account-create-panel label {
   color: #344054;
   display: grid;
   font-size: 13px;
@@ -252,7 +253,10 @@ button:disabled {
   gap: 7px;
 }
 
-.source-form input {
+.source-form input,
+.source-form select,
+.account-create-panel input,
+.account-create-panel select {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   color: #172033;
@@ -260,7 +264,9 @@ button:disabled {
   padding: 8px 10px;
 }
 
-.source-form button {
+.source-form button,
+.account-create-panel button,
+.manual-transaction-panel button {
   background: #175cd3;
   border: 1px solid #175cd3;
   border-radius: 6px;
@@ -269,6 +275,26 @@ button:disabled {
   min-height: 40px;
   padding: 0 14px;
   white-space: nowrap;
+}
+
+.account-create-panel {
+  align-items: end;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  margin: 0;
+  padding: 14px;
+}
+
+.account-create-panel legend {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 6px;
+  text-transform: uppercase;
 }
 
 .confirmed-source {
@@ -352,6 +378,15 @@ button:disabled {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.manual-transaction-panel {
+  align-items: center;
+  border-bottom: 1px solid #edf1f6;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 96px minmax(220px, 1fr) 110px 170px 140px 96px auto;
+  padding: 12px 20px;
 }
 
 table {
@@ -544,6 +579,8 @@ th {
 
   .import-summary,
   .source-form,
+  .account-create-panel,
+  .manual-transaction-panel,
   .diagnostics-grid {
     grid-template-columns: 1fr;
   }
