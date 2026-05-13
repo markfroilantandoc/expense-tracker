@@ -25,7 +25,7 @@ export function SavedTransactionsTable({ transactions, importCount, isLoading }:
         </div>
       </div>
 
-      <div className="table-scroll confirmed-table-scroll">
+      <div className="table-scroll saved-table-scroll">
         <table>
           <thead>
             <tr>

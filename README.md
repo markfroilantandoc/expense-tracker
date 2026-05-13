@@ -106,8 +106,11 @@ The current app implements the first local import and review workflow:
 - Return selected confirmed transactions back to candidates
 - Save reviewed imports locally
 - Reload saved transactions across launches
-- Saved Transactions table backed by `review-data.json`
+- Transactions-first home screen showing saved transactions backed by `review-data.json`
+- Full-height Saved Transactions table that expands with the app window
+- Focused import workspace for source confirmation, candidate review, confirmed rows, and parser diagnostics
 - Parser diagnostics showing extracted text and candidate lines
+- Electron launches without opening DevTools by default
 
 Current limitations:
 

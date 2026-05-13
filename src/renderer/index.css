@@ -7,7 +7,7 @@ body {
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
   margin: 0;
-  background: #f5f7fa;
+  background: #f4f6f8;
   color: #172033;
 }
 
@@ -21,6 +21,14 @@ button {
   cursor: pointer;
 }
 
+button,
+.upload-button {
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -28,28 +36,61 @@ button:disabled {
 
 .app-shell {
   margin: 0 auto;
-  max-width: 1100px;
-  padding: 32px;
+  max-width: 1240px;
+  padding: 28px 32px 36px;
+}
+
+.import-workspace-shell {
+  max-width: 1360px;
+}
+
+.transactions-workspace-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: none;
+  width: 100%;
 }
 
 .app-header {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   gap: 24px;
   justify-content: space-between;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
 }
 
 .app-header h1 {
-  font-size: 32px;
+  font-size: 28px;
   line-height: 1.15;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .app-header p {
   color: #5e6a7d;
   font-size: 15px;
   margin: 0;
+}
+
+.dashboard-header {
+  background: #ffffff;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.dashboard-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.import-header {
+  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
 .upload-button {
@@ -61,6 +102,7 @@ button:disabled {
   cursor: pointer;
   display: inline-flex;
   font-weight: 600;
+  justify-content: center;
   min-height: 40px;
   padding: 0 16px;
   white-space: nowrap;
@@ -77,6 +119,26 @@ button:disabled {
 
 .upload-button input {
   display: none;
+}
+
+.secondary-button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #344054;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #98a2b3;
+  color: #172033;
 }
 
 .status-banner {
@@ -110,6 +172,29 @@ button:disabled {
   border-radius: 8px;
   margin-bottom: 18px;
   overflow: hidden;
+}
+
+.import-empty-state {
+  align-items: center;
+  background: #ffffff;
+  border: 1px dashed #b8c4d3;
+  border-radius: 8px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  min-height: 160px;
+  padding: 24px;
+}
+
+.import-empty-state h2 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+
+.import-empty-state p {
+  color: #5e6a7d;
+  margin: 0;
 }
 
 .import-summary {
@@ -209,6 +294,13 @@ button:disabled {
   border-radius: 8px;
   margin-bottom: 18px;
   overflow: hidden;
+}
+
+.transactions-workspace-shell > .transactions-section {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .transactions-section table {
@@ -367,12 +459,18 @@ th {
 }
 
 .table-scroll {
-  max-height: 430px;
+  max-height: min(520px, calc(100vh - 220px));
   overflow: auto;
 }
 
 .confirmed-table-scroll {
-  max-height: 320px;
+  max-height: 360px;
+}
+
+.saved-table-scroll {
+  flex: 1 1 auto;
+  max-height: none;
+  min-height: 0;
 }
 
 .diagnostics-section {
@@ -416,15 +514,32 @@ th {
 
 @media (max-width: 720px) {
   .app-shell {
-    padding: 20px;
+    padding: 16px;
   }
 
   .app-header {
-    display: block;
+    align-items: stretch;
+    display: grid;
+    gap: 14px;
   }
 
-  .upload-button {
-    margin-top: 18px;
+  .dashboard-header {
+    padding: 16px;
+  }
+
+  .dashboard-actions,
+  .import-empty-state {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .import-header {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-button,
+  .secondary-button {
+    width: 100%;
   }
 
   .import-summary,
