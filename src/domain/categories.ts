@@ -1,4 +1,4 @@
-import type { TransactionType } from './pdfImport';
+import type { TransactionType } from './transactions';
 
 export type CategoryGroup = 'Fixed Expenses' | 'Discretionary Expenses' | 'Savings' | 'Income' | 'Transfer';
 

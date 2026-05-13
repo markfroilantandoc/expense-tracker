@@ -32,7 +32,7 @@ Suggested local files:
 - `imports.json`: imported statement metadata, source account, import date, and duplicate tracking hints
 - `categories.json`: optional future category rules and user corrections
 
-The renderer should not access the filesystem directly. Use `src/preload.ts` to expose safe renderer APIs backed by filesystem reads and writes in the Electron main process.
+The renderer should not access the filesystem directly. Use `src/electron/preload.ts` to expose safe renderer APIs backed by filesystem reads and writes in the Electron main process.
 
 ## Account Model
 
@@ -106,20 +106,11 @@ Current limitations:
 
 ## Project Structure
 
-- `src/main.ts`: Electron main process. Creates the desktop `BrowserWindow` and loads the Vite renderer.
-- `src/preload.ts`: Electron preload script. Exposes safe renderer APIs backed by IPC.
-- `src/renderer.tsx`: React renderer entry point.
-- `src/App.tsx`: Import, source confirmation, candidate review, confirmed transaction workflow, and review UI state.
-- `src/pdfImport.ts`: PDF text extraction, source detection, generic transaction candidate parsing, and normalization.
-- `src/categories.ts`: Category hierarchy and built-in keyword rules for auto-categorization.
-- `src/index.css`: Renderer styles.
-- `index.html`: Renderer HTML shell with the React root element.
-- `forge.config.ts`: Electron Forge configuration, including Vite build targets and packaging options.
-- `vite.main.config.ts`: Vite config for the Electron main process.
-- `vite.preload.config.ts`: Vite config for the preload script.
-- `vite.renderer.config.ts`: Vite config for the renderer.
-- `tsconfig.json`: TypeScript configuration.
-- `package.json`: npm scripts and dependencies.
+- `src/electron/`: Desktop-side Electron code. This is where the app creates windows, owns IPC handlers, and exposes safe APIs to the renderer through the preload script. Future local file persistence should live behind this layer.
+- `src/renderer/`: React UI code. This is the part of the app the user sees and clicks: screens, forms, tables, styling, and UI workflow hooks. It should call safe APIs exposed by Electron instead of importing Electron or filesystem APIs directly.
+- `src/domain/`: Shared app concepts and pure business logic. Transaction types, statement/source types, category rules, validation helpers, and sorting/conversion helpers live here so they can be reused by the parser, UI, and future persistence/reporting features.
+- `src/pdf/`: PDF-specific import logic. This layer extracts selectable PDF text, detects statement metadata, and converts statement lines into domain transaction candidates.
+- Root config files: Electron Forge, Vite, TypeScript, npm scripts, and the renderer HTML shell live at the project root.
 
 ## Commands
 

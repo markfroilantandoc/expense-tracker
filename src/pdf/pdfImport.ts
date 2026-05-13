@@ -1,36 +1,7 @@
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-
-export type TransactionType = 'expense' | 'income' | 'transfer';
-
-export type StatementSource = {
-  issuer: string;
-  account: string;
-  statementPeriod: string;
-};
-
-export type TransactionCandidate = {
-  id: string;
-  lineNumber: number;
-  originalText: string;
-  date: string;
-  description: string;
-  type: TransactionType;
-  amount: number;
-  confidence: 'medium' | 'low';
-};
-
-export type PdfParseResult = {
-  fileName: string;
-  pageCount: number;
-  characterCount: number;
-  lineCount: number;
-  source: StatementSource;
-  candidates: TransactionCandidate[];
-  candidateLines: string[];
-  extractedText: string;
-  warnings: string[];
-};
+import type { PdfParseResult, StatementSource } from '../domain/statements';
+import type { TransactionCandidate, TransactionType } from '../domain/transactions';
 
 type ParsePdfInput = {
   fileName: string;
