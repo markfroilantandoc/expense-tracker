@@ -2,96 +2,72 @@
 
 Lightweight local-first desktop expense tracking app built with Electron, React, TypeScript, Vite, and Electron Forge.
 
-## Product Goal
+## Overview
 
-Build a simple desktop app for importing credit card and bank statement PDFs, extracting transactions, categorizing spending, and making it easy to review or correct the imported data.
+Expense Tracker helps review statement activity from credit card and bank statement PDFs. It extracts selectable PDF text, turns likely transaction lines into editable rows, and saves confirmed transactions locally after the import reconciles against the statement balances.
 
-The app should prioritize end-to-end usefulness over perfect abstractions. The main UX goal is to minimize manual correction work after import.
+The app is designed for local desktop use. It does not require a backend, cloud account, remote database, authentication, or sync service.
 
-## Current Scope
+## What the App Does
 
-- Credit card and bank statements
-- PDF statement import from selectable-text PDFs
-- Local desktop app only
-- In-memory import review with local save after review
-- Local JSON persistence for accounts, reviewed imports, and confirmed transactions
-- No backend, server, cloud sync, auth, or remote database
-- No receipt scanning
-- No budgeting reports yet
+- Imports selectable-text PDF statements
+- Detects statement source details such as issuer, account hints, and statement period when possible
+- Lets each import be assigned to a saved account
+- Supports credit card, checking, savings, and other account types
+- Extracts transaction candidates from statement text
+- Lets transaction rows be reviewed, edited, categorized, confirmed, or returned for more editing
+- Supports manual transaction entry for missing rows
+- Requires reviewed imports to reconcile before saving
+- Saves accounts, reviewed imports, and confirmed transactions to local JSON storage
+- Shows saved transactions on the home screen across app launches
 
-## Local Persistence
+## Current Workflow
 
-No backend means the app does not require a server, cloud service, auth system, or remote database. Reviewed import data is saved locally on disk by the Electron main process.
+The app opens to a saved transactions view backed by locally persisted review data. From there, a PDF statement can be imported into a focused review workspace.
 
-The current persistent version stores accounts, reviewed imports, and confirmed transactions in `review-data.json` under Electron's app user data directory. On Windows during development, that resolves to a path like:
+During import, the PDF text is extracted through the Electron main/preload bridge. The parser makes a best-effort pass at detecting source metadata and transaction candidates from the extracted lines.
 
-```text
-C:\Users\<user>\AppData\Roaming\expense-tracker\review-data.json
-```
+Before reviewing rows, the user confirms the statement source by selecting or creating an account, entering the statement start and end dates, and entering the statement opening and ending balances. Parsed issuer and account text are treated as hints only; saved account selection is the source of truth.
 
-The file uses a simple flat shape:
+The review workspace separates candidate rows from confirmed rows. Candidate rows can be edited inline, categorized, selected in bulk, and moved into the confirmed transactions table. Confirmed rows can be returned to candidates if they need more editing. Missing rows can be added manually.
 
-- `version`: persistence format version
-- `accounts`: saved account records with name, type, issuer, optional last digits, and opening balance
-- `imports`: reviewed import metadata, account id, source snapshot, statement balances, save timestamp, and saved transaction ids
-- `transactions`: top-level normalized transaction records shared across imports; every saved transaction must have `accountId`
+The app calculates the expected ending balance from the statement opening balance and confirmed transactions. A reviewed import can only be saved when the calculated ending balance matches the statement ending balance.
 
-Keeping `transactions` top-level makes future year, quarter, month, category, account, and source analysis straightforward. `importId` and import-level `transactionIds` preserve provenance without nesting transactions under imports.
+## App Design
 
-The renderer should not access the filesystem directly. Use `src/electron/preload.ts` to expose safe renderer APIs backed by filesystem reads and writes in the Electron main process.
+Expense Tracker uses a transactions-first layout. Saved transactions are the default view, and the import workspace is used only when adding new statement activity.
 
-Future local files may include:
+The import workspace is organized around source confirmation, candidate review, confirmed transactions, reconciliation, and parser diagnostics. Parser diagnostics expose extracted text and candidate lines so parsing issues can be inspected without leaving the app.
 
-- `categories.json`: category rules and user corrections
+Transaction categorization is separate from accounting semantics. Transaction `type` describes how money affects the account, while `categoryGroup` and `category` describe how the user wants to analyze the transaction.
 
-## Account Model
+## Data Model
 
-Each new imported statement must belong to a saved account. Account selection is the source of truth for new imports; parsed issuer/account text is only used as a hint when creating an account.
-
-Account types:
+Each saved account has a name, account type, issuer, optional last digits, and opening balance. Supported account types are:
 
 - `credit_card`
 - `checking`
 - `savings`
 - `other`
 
-Accounts store a ledger-signed opening balance:
+Balances are stored as ledger-signed values:
 
 - Asset accounts such as checking and savings are positive when money is available.
 - Credit card accounts are negative when money is owed.
 - In the import UI, credit card balance fields are entered as positive amounts owed and converted to negative ledger balances internally.
 
-Each new reviewed import requires statement start/end dates, a statement opening balance, and a statement ending balance. The app calculates the expected ending balance from confirmed transactions and blocks saving until the import reconciles.
-
-For credit cards:
-
-- `expense` decreases the balance, meaning more owed.
-- `income` and `transfer` increase the balance, meaning refunds, credits, or payments toward zero.
-
-For non-credit-card accounts:
-
-- `income` increases the balance.
-- `expense` and `transfer` decrease the balance.
-
-## Transaction Model
-
-Transaction amounts are normalized as positive numbers.
-
-Each transaction has a `type`:
+Transaction amounts are normalized as positive numbers. Each transaction has a semantic `type`:
 
 - `expense`: purchases, withdrawals, fees, outgoing payments, and other spending
 - `income`: deposits, refunds, cashback, credits
 - `transfer`: card payments, bank transfers, or balance movement between accounts
 
-Examples:
+Transaction effects depend on account type:
 
-- Purchase = `expense`
-- Bank fee = `expense`
-- Paycheck deposit = `income`
-- Refund or cashback = `income`
-- Credit card payment or transfer between accounts = `transfer`
+- For credit cards, `expense` increases the amount owed, while `income` and `transfer` reduce the amount owed.
+- For non-credit-card accounts, `income` increases the balance, while `expense` and `transfer` decrease the balance.
 
-Transactions also carry user-facing categorization fields for analysis:
+Transactions also carry categorization fields for reporting:
 
 - `categoryGroup`: high-level reporting bucket
 - `category`: second-level category within the selected group
@@ -104,52 +80,34 @@ Current category groups:
 - `Income`: Salary, Interest, Repayment, Other
 - `Transfer`: Transfer
 
-These category fields coexist with `type`. The `type` field is for accounting semantics; category group and category are for user analysis.
+## Local Persistence
 
-## Current App State
+Reviewed import data is saved locally on disk by the Electron main process. The renderer does not access the filesystem directly; it uses safe APIs exposed from `src/electron/preload.ts`.
 
-The current app implements the first local import and review workflow:
+The current persistent format stores accounts, reviewed imports, and confirmed transactions in `review-data.json` under Electron's app user data directory. On Windows during development, that resolves to a path like:
 
-- PDF statement upload
-- PDF text extraction through the Electron main/preload bridge
-- Best-effort source detection for issuer, account, and statement period
-- Import source confirmation through saved account selection, statement dates, and statement balance entry
-- Inline account creation during import
-- Required reconciliation from statement opening balance to statement ending balance before save
-- Generic transaction candidate detection from extracted text
-- Editable candidate rows for date, description, type, amount, category group, and category
-- Built-in keyword-based auto-categorization
-- Multi-select candidate confirmation
-- Separate Confirmed Transactions table
-- Manual confirmed transaction entry for missing rows needed to reconcile
-- Return selected confirmed transactions back to candidates
-- Save reviewed imports locally
-- Reload saved transactions across launches
-- Transactions-first home screen showing saved transactions backed by `review-data.json`
-- Full-height Saved Transactions table that expands with the app window
-- Focused import workspace for source confirmation, candidate review, confirmed rows, and parser diagnostics
-- Parser diagnostics showing extracted text and candidate lines
-- Electron launches without opening DevTools by default
+```text
+C:\Users\<user>\AppData\Roaming\expense-tracker\review-data.json
+```
 
-Current limitations:
+The file uses a simple flat shape:
 
-- In-progress candidate drafts are not persisted.
-- No duplicate detection.
-- No dedicated accounts screen outside the import workflow.
-- No edit/delete workflow for saved transactions or saved imports.
-- This early data model intentionally treats imports and transactions without account ids as unsupported legacy data.
-- No OCR; scanned/image-only PDFs are not supported yet.
-- Parsing is generic and conservative, not issuer-specific.
+- `version`: persistence format version
+- `accounts`: saved account records
+- `imports`: reviewed import metadata, account id, source snapshot, statement balances, save timestamp, and saved transaction ids
+- `transactions`: top-level normalized transaction records shared across imports; every saved transaction must have `accountId`
+
+Keeping `transactions` top-level supports future account, category, date range, and source analysis. `importId` and import-level `transactionIds` preserve provenance without nesting transactions under imports.
 
 ## Project Structure
 
-- `src/electron/`: Desktop-side Electron code. This is where the app creates windows, owns IPC handlers, exposes safe APIs to the renderer through the preload script, and owns local JSON persistence.
-- `src/renderer/`: React UI code. This is the part of the app the user sees and clicks: screens, forms, tables, styling, and UI workflow hooks. It should call safe APIs exposed by Electron instead of importing Electron or filesystem APIs directly.
-- `src/domain/`: Shared app concepts and pure business logic. Transaction types, statement/source types, category rules, validation helpers, and sorting/conversion helpers live here so they can be reused by the parser, UI, and future persistence/reporting features.
-- `src/pdf/`: PDF-specific import logic. This layer extracts selectable PDF text, detects statement metadata, and converts statement lines into domain transaction candidates.
+- `src/electron/`: Desktop-side Electron code. Creates windows, owns IPC handlers, exposes safe APIs through the preload script, and owns local JSON persistence.
+- `src/renderer/`: React UI code. Contains screens, forms, tables, styling, and UI workflow hooks.
+- `src/domain/`: Shared app concepts and pure business logic. Transaction types, statement/source types, category rules, validation helpers, and sorting/conversion helpers live here.
+- `src/pdf/`: PDF-specific import logic. Extracts selectable PDF text, detects statement metadata, and converts statement lines into domain transaction candidates.
 - Root config files: Electron Forge, Vite, TypeScript, npm scripts, and the renderer HTML shell live at the project root.
 
-## Commands
+## Development Commands
 
 Start the app locally:
 
@@ -169,30 +127,13 @@ Build/package the app:
 npm run package
 ```
 
-Verified status:
+## Current Limitations
 
-- `npm run lint` passes
-- `npm run package` passed after the initial accounts implementation; the latest rerun after UX refinements was interrupted before completion
-- `npm run start` has not been rerun after the latest UX refinements
-
-## Architecture Notes
-
-- Keep the architecture simple and incremental.
-- Prefer local-first behavior.
-- Avoid introducing a backend, server, cloud sync, auth, or remote database.
-- Start with local JSON persistence before considering an embedded database such as SQLite.
-- Use the Electron preload layer for renderer access to filesystem or native APIs.
-- Keep transaction normalization explicit: positive `amount` plus semantic `type`.
-- Associate every imported transaction with a source account.
-- Treat balances as ledger-signed values. Use statement opening and ending balances to reconcile each new import before saving.
-- Build thin vertical slices before expanding abstractions.
-
-## Suggested Next Step
-
-Recommended next thin slices:
-
-1. Add duplicate detection using import metadata and transaction fingerprints.
-2. Add a dedicated Accounts screen for reviewing account balances and imported statement history.
-3. Add edit/delete workflows for saved transactions and imports.
-4. Add local JSON persistence for category rules.
-5. Start learning category rules from user corrections once `categories.json` exists.
+- In-progress candidate drafts are not persisted.
+- Duplicate detection is not implemented.
+- Accounts can be created during import, but there is no dedicated accounts screen.
+- Saved transactions and saved imports do not have edit/delete workflows yet.
+- Imports and transactions without account ids are treated as unsupported legacy data.
+- Scanned/image-only PDFs are not supported because OCR is not implemented.
+- Parsing is generic and conservative, not issuer-specific.
+- Budgeting and reporting views are not implemented.
