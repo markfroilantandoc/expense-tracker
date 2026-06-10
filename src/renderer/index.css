@@ -348,6 +348,105 @@ button:disabled {
   padding: 5px 10px;
 }
 
+.accounts-section {
+  background: #ffffff;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.accounts-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  padding: 16px 20px 20px;
+}
+
+.accounts-empty-state {
+  color: #667085;
+  margin: 0;
+}
+
+.account-summary-card {
+  background: #fbfcfe;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  color: #172033;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  text-align: left;
+}
+
+.account-summary-card:hover {
+  background: #f8fafc;
+  border-color: #98a2b3;
+}
+
+.account-summary-card-selected {
+  background: #eff6ff;
+  border-color: #175cd3;
+  box-shadow: inset 0 0 0 1px #175cd3;
+}
+
+.account-summary-heading {
+  align-items: start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.account-summary-heading span {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.account-summary-heading small {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.account-summary-meta {
+  color: #667085;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.account-balance-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.account-balance-grid div {
+  display: grid;
+  gap: 4px;
+}
+
+.account-balance-grid dt {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.account-balance-grid dd {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.account-summary-footer {
+  color: #5e6a7d;
+  font-size: 12px;
+}
+
 .transactions-section {
   background: #ffffff;
   border: 1px solid #d9e0ea;
@@ -412,6 +511,24 @@ button:disabled {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.account-filter {
+  align-items: center;
+  color: #344054;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.account-filter select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  min-height: 36px;
+  min-width: 180px;
+  padding: 6px 10px;
 }
 
 .manual-transaction-panel {
@@ -597,7 +714,8 @@ th {
   }
 
   .dashboard-actions,
-  .import-empty-state {
+  .import-empty-state,
+  .account-filter {
     align-items: stretch;
     display: grid;
   }
@@ -608,6 +726,11 @@ th {
 
   .upload-button,
   .secondary-button {
+    width: 100%;
+  }
+
+  .account-filter select {
+    min-width: 0;
     width: 100%;
   }
 

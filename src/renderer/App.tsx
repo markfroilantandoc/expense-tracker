@@ -1,5 +1,7 @@
-import { type ChangeEvent, useEffect, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import type { AppEnvironment } from '../electron/appProfile';
+import { buildAccountBalanceSummaries } from '../domain/balances';
+import { AccountsSummary } from './components/AccountsSummary';
 import { ConfirmedTransactionsTable } from './components/ConfirmedTransactionsTable';
 import { ParserDiagnostics } from './components/ParserDiagnostics';
 import { SavedTransactionsTable } from './components/SavedTransactionsTable';
@@ -15,6 +17,7 @@ export function App() {
   const review = useImportReview();
   const [activeView, setActiveView] = useState<AppView>('transactions');
   const [appEnvironment, setAppEnvironment] = useState<AppEnvironment | null>(null);
+  const [selectedTransactionAccountId, setSelectedTransactionAccountId] = useState('');
   const isImportView = activeView === 'import';
 
   useEffect(() => {
@@ -48,6 +51,19 @@ export function App() {
 
   const uploadLabel = review.status === 'parsing' ? 'Parsing PDF...' : 'Import PDF';
   const hasActiveImport = Boolean(review.parseResult) || review.status === 'parsing';
+  const accountBalanceSummaries = useMemo(
+    () => buildAccountBalanceSummaries(review.savedReviewData),
+    [review.savedReviewData],
+  );
+  const savedTransactionsForSelectedAccount = useMemo(
+    () =>
+      selectedTransactionAccountId
+        ? review.savedReviewData.transactions.filter(
+            (transaction) => transaction.accountId === selectedTransactionAccountId,
+          )
+        : review.savedReviewData.transactions,
+    [review.savedReviewData.transactions, selectedTransactionAccountId],
+  );
   const profileBadge = appEnvironment ? (
     <span className={`profile-badge profile-badge-${appEnvironment.profile}`} title={appEnvironment.userDataPath}>
       {appEnvironment.profile.toUpperCase()}
@@ -236,12 +252,23 @@ export function App() {
           {review.parseResult ? <ParserDiagnostics parseResult={review.parseResult} /> : null}
         </>
       ) : (
-        <SavedTransactionsTable
-          transactions={review.savedReviewData.transactions}
-          accounts={review.savedReviewData.accounts}
-          importCount={review.savedReviewData.imports.length}
-          isLoading={review.persistenceStatus === 'loading'}
-        />
+        <>
+          <AccountsSummary
+            summaries={accountBalanceSummaries}
+            selectedAccountId={selectedTransactionAccountId}
+            onSelectAccount={setSelectedTransactionAccountId}
+          />
+
+          <SavedTransactionsTable
+            transactions={savedTransactionsForSelectedAccount}
+            accounts={review.savedReviewData.accounts}
+            selectedAccountId={selectedTransactionAccountId}
+            totalTransactionCount={review.savedReviewData.transactions.length}
+            importCount={review.savedReviewData.imports.length}
+            isLoading={review.persistenceStatus === 'loading'}
+            onAccountFilterChange={setSelectedTransactionAccountId}
+          />
+        </>
       )}
 
     </main>

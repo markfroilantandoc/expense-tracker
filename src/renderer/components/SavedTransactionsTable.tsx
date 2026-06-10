@@ -4,16 +4,28 @@ import type { SavedTransaction } from '../../domain/persistence';
 type SavedTransactionsTableProps = {
   transactions: SavedTransaction[];
   accounts: Account[];
+  selectedAccountId: string;
+  totalTransactionCount: number;
   importCount: number;
   isLoading: boolean;
+  onAccountFilterChange: (accountId: string) => void;
 };
 
-export function SavedTransactionsTable({ transactions, accounts, importCount, isLoading }: SavedTransactionsTableProps) {
+export function SavedTransactionsTable({
+  transactions,
+  accounts,
+  selectedAccountId,
+  totalTransactionCount,
+  importCount,
+  isLoading,
+  onAccountFilterChange,
+}: SavedTransactionsTableProps) {
   const sortedTransactions = [...transactions].sort((a, b) => {
     const dateComparison = a.date.localeCompare(b.date);
     return dateComparison === 0 ? a.description.localeCompare(b.description) : dateComparison;
   });
   const accountsById = new Map(accounts.map((account) => [account.id, account]));
+  const selectedAccount = accountsById.get(selectedAccountId);
 
   return (
     <section className="transactions-section" aria-labelledby="saved-transactions-title">
@@ -23,9 +35,20 @@ export function SavedTransactionsTable({ transactions, accounts, importCount, is
           <span>
             {isLoading
               ? 'Loading saved review data'
-              : `${transactions.length} transactions across ${importCount} imports`}
+              : getTableSummary(transactions.length, totalTransactionCount, importCount, selectedAccount?.name)}
           </span>
         </div>
+        <label className="account-filter">
+          Account
+          <select value={selectedAccountId} onChange={(event) => onAccountFilterChange(event.target.value)}>
+            <option value="">All accounts</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="table-scroll saved-table-scroll">
@@ -75,4 +98,17 @@ export function SavedTransactionsTable({ transactions, accounts, importCount, is
       </div>
     </section>
   );
+}
+
+function getTableSummary(
+  visibleTransactionCount: number,
+  totalTransactionCount: number,
+  importCount: number,
+  selectedAccountName?: string,
+): string {
+  if (selectedAccountName) {
+    return `${visibleTransactionCount} of ${totalTransactionCount} transactions for ${selectedAccountName}`;
+  }
+
+  return `${totalTransactionCount} transactions across ${importCount} imports`;
 }

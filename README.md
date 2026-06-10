@@ -4,7 +4,7 @@ Lightweight local-first desktop expense tracking app built with Electron, React,
 
 ## Overview
 
-Expense Tracker helps review statement activity from credit card and bank statement PDFs. It extracts selectable PDF text, turns likely transaction lines into editable rows, and saves confirmed transactions locally after the import reconciles against the statement balances.
+Expense Tracker helps review statement activity from credit card and bank statement PDFs. It extracts selectable PDF text, turns likely transaction lines into editable rows, saves confirmed transactions locally after the import reconciles against the statement balances, and summarizes current account balances from saved activity.
 
 The app is designed for local desktop use. It does not require a backend, cloud account, remote database, authentication, or sync service.
 
@@ -19,11 +19,13 @@ The app is designed for local desktop use. It does not require a backend, cloud 
 - Supports manual transaction entry for missing rows
 - Requires reviewed imports to reconcile before saving
 - Saves accounts, reviewed imports, and confirmed transactions to local JSON storage
+- Shows account balance summaries, latest statement balances, import counts, and transaction counts
 - Shows saved transactions on the home screen across app launches
+- Filters saved transactions by account
 
 ## Current Workflow
 
-The app opens to a saved transactions view backed by locally persisted review data. From there, a PDF statement can be imported into a focused review workspace.
+The app opens to a transactions view backed by locally persisted review data. The home view shows saved account balance summaries and saved transactions. Selecting an account summary card or using the account filter limits the transaction table to that account. From there, a PDF statement can be imported into a focused review workspace.
 
 During import, the PDF text is extracted through the Electron main/preload bridge. The parser makes a best-effort pass at detecting source metadata and transaction candidates from the extracted lines.
 
@@ -33,9 +35,11 @@ The review workspace separates candidate rows from confirmed rows. Candidate row
 
 The app calculates the expected ending balance from the statement opening balance and confirmed transactions. A reviewed import can only be saved when the calculated ending balance matches the statement ending balance.
 
+After saving, account summaries are calculated from the account opening balance plus saved transactions. The latest reconciled statement ending balance is shown separately so the calculated balance can be compared against the most recent imported statement.
+
 ## App Design
 
-Expense Tracker uses a transactions-first layout. Saved transactions are the default view, and the import workspace is used only when adding new statement activity.
+Expense Tracker uses a transactions-first layout. Account summaries and saved transactions are the default view, and the import workspace is used only when adding new statement activity.
 
 The import workspace is organized around source confirmation, candidate review, confirmed transactions, reconciliation, and parser diagnostics. Parser diagnostics expose extracted text and candidate lines so parsing issues can be inspected without leaving the app.
 
@@ -66,6 +70,8 @@ Transaction effects depend on account type:
 
 - For credit cards, `expense` increases the amount owed, while `income` and `transfer` reduce the amount owed.
 - For non-credit-card accounts, `income` increases the balance, while `expense` and `transfer` decrease the balance.
+
+Current account balances are calculated from the saved account opening balance plus all saved transactions for that account. Latest statement balances come from the most recent saved import for the account.
 
 Transactions also carry categorization fields for reporting:
 
@@ -114,7 +120,7 @@ Keeping `transactions` top-level supports future account, category, date range, 
 
 - `src/electron/`: Desktop-side Electron code. Creates windows, owns IPC handlers, exposes safe APIs through the preload script, and owns local JSON persistence.
 - `src/renderer/`: React UI code. Contains screens, forms, tables, styling, and UI workflow hooks.
-- `src/domain/`: Shared app concepts and pure business logic. Transaction types, statement/source types, category rules, validation helpers, and sorting/conversion helpers live here.
+- `src/domain/`: Shared app concepts and pure business logic. Transaction types, statement/source types, category rules, balance calculation helpers, validation helpers, and sorting/conversion helpers live here.
 - `src/pdf/`: PDF-specific import logic. Extracts selectable PDF text, detects statement metadata, and converts statement lines into domain transaction candidates.
 - Root config files: Electron Forge, Vite, TypeScript, npm scripts, and the renderer HTML shell live at the project root.
 
@@ -155,6 +161,8 @@ npm run package
 - In-progress candidate drafts are not persisted.
 - Duplicate detection is not implemented.
 - Accounts can be created during import, but there is no dedicated accounts screen.
+- Account summaries are read-only; account editing and archiving are not implemented.
+- Saved transaction filtering exists, but per-transaction running balance rows are not implemented yet.
 - Saved transactions and saved imports do not have edit/delete workflows yet.
 - Imports and transactions without account ids are treated as unsupported legacy data.
 - Scanned/image-only PDFs are not supported because OCR is not implemented.
