@@ -6,6 +6,7 @@ const api: ExpenseTrackerApi = {
   loadSavedReviewData: () => ipcRenderer.invoke('review-data:load'),
   createAccount: (payload) => ipcRenderer.invoke('accounts:create', payload),
   saveReviewedImport: (payload) => ipcRenderer.invoke('review-data:save-import', payload),
+  getAppEnvironment: () => ipcRenderer.invoke('app:get-environment'),
 };
 
 contextBridge.exposeInMainWorld('expenseTracker', api);

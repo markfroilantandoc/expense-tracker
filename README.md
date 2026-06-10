@@ -84,10 +84,21 @@ Current category groups:
 
 Reviewed import data is saved locally on disk by the Electron main process. The renderer does not access the filesystem directly; it uses safe APIs exposed from `src/electron/preload.ts`.
 
-The current persistent format stores accounts, reviewed imports, and confirmed transactions in `review-data.json` under Electron's app user data directory. On Windows during development, that resolves to a path like:
+The app uses separate local data profiles so development data and preserved production data do not share the same storage folder. Local development runs use the `dev` profile by default. Packaged builds use the `prod` profile by default. A development run can explicitly use production data with `npm run start:prod-data`.
+
+The current persistent format stores accounts, reviewed imports, and confirmed transactions in `expense-tracker-data.json` under the active profile's Electron app user data directory. On Windows, the two profile paths resolve to:
 
 ```text
-C:\Users\<user>\AppData\Roaming\expense-tracker\review-data.json
+C:\Users\<user>\AppData\Roaming\expense-tracker-dev\expense-tracker-data.json
+C:\Users\<user>\AppData\Roaming\expense-tracker-prod\expense-tracker-data.json
+```
+
+Before an existing data file is overwritten, the app creates a timestamped backup in the active profile's `backups` directory. In the `prod` profile, a backup failure stops the write. In the `dev` profile, backup failures are ignored so test data work can continue.
+
+Backup files use this shape:
+
+```text
+C:\Users\<user>\AppData\Roaming\expense-tracker-prod\backups\expense-tracker-data-<timestamp>.json
 ```
 
 The file uses a simple flat shape:
@@ -113,6 +124,18 @@ Start the app locally:
 
 ```powershell
 npm run start
+```
+
+Start the app locally with development data:
+
+```powershell
+npm run start:dev
+```
+
+Start the app locally with production data:
+
+```powershell
+npm run start:prod-data
 ```
 
 Run lint:

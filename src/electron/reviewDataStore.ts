@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Account, CreateAccountPayload } from '../domain/accounts';
 import {
@@ -11,8 +11,10 @@ import {
   type SavedTransaction,
   type SaveReviewedImportPayload,
 } from '../domain/persistence';
+import { getAppProfile, isProductionProfile } from './appProfile';
 
-const reviewDataFileName = 'review-data.json';
+const expenseTrackerDataFileName = 'expense-tracker-data.json';
+const backupsDirectoryName = 'backups';
 
 export async function loadSavedReviewData(): Promise<SavedReviewData> {
   const filePath = getReviewDataFilePath();
@@ -109,13 +111,33 @@ export async function createAccount(payload: CreateAccountPayload): Promise<Save
 }
 
 function getReviewDataFilePath(): string {
-  return path.join(app.getPath('userData'), reviewDataFileName);
+  return path.join(app.getPath('userData'), expenseTrackerDataFileName);
 }
 
 async function writeSavedReviewData(data: SavedReviewData): Promise<void> {
   const filePath = getReviewDataFilePath();
   await mkdir(path.dirname(filePath), { recursive: true });
+  await backupExistingExpenseTrackerData(filePath);
   await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
+
+async function backupExistingExpenseTrackerData(filePath: string): Promise<void> {
+  const backupDirectoryPath = path.join(path.dirname(filePath), backupsDirectoryName);
+  const backupFileName = `expense-tracker-data-${safeIdTimestamp(new Date().toISOString())}.json`;
+  const backupFilePath = path.join(backupDirectoryPath, backupFileName);
+
+  try {
+    await mkdir(backupDirectoryPath, { recursive: true });
+    await copyFile(filePath, backupFilePath);
+  } catch (error) {
+    if (isNodeError(error) && error.code === 'ENOENT') {
+      return;
+    }
+
+    if (isProductionProfile(getAppProfile())) {
+      throw error;
+    }
+  }
 }
 
 async function quarantineUnreadableFile(filePath: string): Promise<void> {

@@ -1,4 +1,5 @@
-import { type ChangeEvent, useState } from 'react';
+import { type ChangeEvent, useEffect, useState } from 'react';
+import type { AppEnvironment } from '../electron/appProfile';
 import { ConfirmedTransactionsTable } from './components/ConfirmedTransactionsTable';
 import { ParserDiagnostics } from './components/ParserDiagnostics';
 import { SavedTransactionsTable } from './components/SavedTransactionsTable';
@@ -13,7 +14,32 @@ type AppView = 'transactions' | 'import';
 export function App() {
   const review = useImportReview();
   const [activeView, setActiveView] = useState<AppView>('transactions');
+  const [appEnvironment, setAppEnvironment] = useState<AppEnvironment | null>(null);
   const isImportView = activeView === 'import';
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadAppEnvironment() {
+      let environment: AppEnvironment;
+
+      try {
+        environment = await window.expenseTracker.getAppEnvironment();
+      } catch {
+        return;
+      }
+
+      if (isActive) {
+        setAppEnvironment(environment);
+      }
+    }
+
+    loadAppEnvironment();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   function handleImportFileChange(event: ChangeEvent<HTMLInputElement>) {
     setActiveView('import');
@@ -22,6 +48,11 @@ export function App() {
 
   const uploadLabel = review.status === 'parsing' ? 'Parsing PDF...' : 'Import PDF';
   const hasActiveImport = Boolean(review.parseResult) || review.status === 'parsing';
+  const profileBadge = appEnvironment ? (
+    <span className={`profile-badge profile-badge-${appEnvironment.profile}`} title={appEnvironment.userDataPath}>
+      {appEnvironment.profile.toUpperCase()}
+    </span>
+  ) : null;
 
   return (
     <main className={`app-shell ${isImportView ? 'import-workspace-shell' : 'transactions-workspace-shell'}`}>
@@ -31,7 +62,10 @@ export function App() {
             Back to Transactions
           </button>
           <div>
-            <h1>Import Statement</h1>
+            <div className="header-title-row">
+              <h1>Import Statement</h1>
+              {profileBadge}
+            </div>
             <p>Review the statement source, edit extracted rows, and save confirmed transactions.</p>
           </div>
           <label className="upload-button">
@@ -47,7 +81,10 @@ export function App() {
       ) : (
         <header className="app-header dashboard-header">
           <div>
-            <h1>Transactions</h1>
+            <div className="header-title-row">
+              <h1>Transactions</h1>
+              {profileBadge}
+            </div>
             <p>Saved reviewed transactions are shown first. Import a PDF when you are ready to add more.</p>
           </div>
           <div className="dashboard-actions">
