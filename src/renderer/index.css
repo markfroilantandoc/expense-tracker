@@ -466,10 +466,16 @@ button:disabled {
   min-width: 1180px;
 }
 
-.transactions-section table thead th {
+.transactions-section table thead .table-label-row th {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
+}
+
+.transactions-section table thead .table-filter-row th {
+  position: sticky;
+  top: 31px;
+  z-index: 2;
 }
 
 .section-header {
@@ -506,10 +512,23 @@ button:disabled {
   background: #144fb5;
 }
 
+.compact-button {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
+}
+
+.saved-table-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-end;
 }
 
@@ -529,6 +548,87 @@ button:disabled {
   min-height: 36px;
   min-width: 180px;
   padding: 6px 10px;
+}
+
+.table-filter-row th {
+  background: #ffffff;
+  padding-bottom: 8px;
+  padding-top: 8px;
+  text-transform: none;
+}
+
+.table-filter-row input,
+.table-filter-row select,
+.pagination-bar select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  font-size: 12px;
+  font-weight: 500;
+  min-height: 32px;
+  min-width: 0;
+  padding: 5px 8px;
+  width: 100%;
+}
+
+.table-filter-row input:focus,
+.table-filter-row select:focus,
+.pagination-bar select:focus {
+  border-color: #175cd3;
+  outline: 2px solid #bfdbfe;
+  outline-offset: 0;
+}
+
+.stacked-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 112px;
+}
+
+.amount-column .stacked-filter {
+  margin-left: auto;
+  max-width: 104px;
+}
+
+.pagination-bar {
+  align-items: center;
+  background: #ffffff;
+  border-top: 1px solid #d9e0ea;
+  color: #667085;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 20px;
+}
+
+.pagination-bar label {
+  align-items: center;
+  color: #344054;
+  display: flex;
+  flex-wrap: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 5px;
+}
+
+.pagination-bar select {
+  width: 76px;
+}
+
+.pagination-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pagination-actions span {
+  color: #344054;
+  font-weight: 700;
+  padding: 0 4px;
 }
 
 .manual-transaction-panel {
@@ -715,7 +815,10 @@ th {
 
   .dashboard-actions,
   .import-empty-state,
-  .account-filter {
+  .account-filter,
+  .saved-table-actions,
+  .pagination-actions,
+  .pagination-bar {
     align-items: stretch;
     display: grid;
   }
