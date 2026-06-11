@@ -121,6 +121,35 @@ button:disabled {
   justify-content: flex-end;
 }
 
+.view-switch {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  display: inline-flex;
+  padding: 3px;
+}
+
+.view-switch button {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.view-switch button:hover {
+  color: #172033;
+}
+
+.view-switch .view-switch-active {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 12%);
+  color: #175cd3;
+}
+
 .import-header {
   align-items: center;
   display: grid;
@@ -445,6 +474,194 @@ button:disabled {
 .account-summary-footer {
   color: #5e6a7d;
   font-size: 12px;
+}
+
+.analysis-section {
+  background: #ffffff;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.analysis-header {
+  align-items: center;
+}
+
+.analysis-filters {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.analysis-filters label {
+  align-items: center;
+  color: #344054;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.analysis-filters select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  min-height: 36px;
+  min-width: 180px;
+  padding: 6px 10px;
+}
+
+.analysis-summary {
+  background: #edf1f6;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.analysis-summary div {
+  background: #ffffff;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 20px;
+}
+
+.analysis-summary span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.analysis-summary strong {
+  color: #172033;
+  font-size: 22px;
+}
+
+.analysis-grid {
+  background: #edf1f6;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.analysis-panel {
+  background: #ffffff;
+  min-width: 0;
+  padding: 16px 20px 20px;
+}
+
+.analysis-panel-header {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.analysis-panel-header h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.analysis-panel-header span,
+.panel-empty-state,
+.analysis-empty-state {
+  color: #667085;
+  font-size: 13px;
+}
+
+.panel-empty-state,
+.analysis-empty-state {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.analysis-list,
+.comparison-list {
+  display: grid;
+  gap: 10px;
+}
+
+.analysis-list-row,
+.comparison-row {
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.analysis-list-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.analysis-list-row > div:first-child,
+.comparison-row > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.analysis-list-row span,
+.comparison-row span {
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-list-row small,
+.comparison-row small {
+  color: #667085;
+  font-size: 12px;
+}
+
+.analysis-value {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+}
+
+.analysis-value strong {
+  font-size: 14px;
+}
+
+.analysis-bar {
+  background: #edf1f6;
+  border-radius: 999px;
+  grid-column: 1 / -1;
+  height: 7px;
+  overflow: hidden;
+}
+
+.analysis-bar span {
+  background: #175cd3;
+  display: block;
+  height: 100%;
+}
+
+.comparison-row {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.comparison-row strong {
+  font-size: 14px;
+  justify-self: end;
+}
+
+.positive-change {
+  color: #047857;
+}
+
+.negative-change {
+  color: #b42318;
 }
 
 .transactions-section {
@@ -815,6 +1032,7 @@ th {
 
   .dashboard-actions,
   .import-empty-state,
+  .analysis-filters,
   .account-filter,
   .saved-table-actions,
   .pagination-actions,
@@ -837,7 +1055,15 @@ th {
     width: 100%;
   }
 
+  .view-switch,
+  .view-switch button,
+  .analysis-filters select {
+    width: 100%;
+  }
+
   .import-summary,
+  .analysis-summary,
+  .analysis-grid,
   .source-form,
   .account-create-panel,
   .manual-transaction-panel,

@@ -2,6 +2,7 @@ import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import type { AppEnvironment } from '../electron/appProfile';
 import { buildAccountBalanceSummaries } from '../domain/balances';
 import { AccountsSummary } from './components/AccountsSummary';
+import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { ConfirmedTransactionsTable } from './components/ConfirmedTransactionsTable';
 import { ParserDiagnostics } from './components/ParserDiagnostics';
 import { SavedTransactionsTable } from './components/SavedTransactionsTable';
@@ -11,7 +12,7 @@ import { SummaryItem } from './components/SummaryItem';
 import { TransactionCandidatesTable } from './components/TransactionCandidatesTable';
 import { useImportReview } from './hooks/useImportReview';
 
-type AppView = 'transactions' | 'import';
+type AppView = 'transactions' | 'analysis' | 'import';
 
 export function App() {
   const review = useImportReview();
@@ -19,6 +20,7 @@ export function App() {
   const [appEnvironment, setAppEnvironment] = useState<AppEnvironment | null>(null);
   const [selectedTransactionAccountId, setSelectedTransactionAccountId] = useState('');
   const isImportView = activeView === 'import';
+  const isAnalysisView = activeView === 'analysis';
 
   useEffect(() => {
     let isActive = true;
@@ -98,12 +100,32 @@ export function App() {
         <header className="app-header dashboard-header">
           <div>
             <div className="header-title-row">
-              <h1>Transactions</h1>
+              <h1>{isAnalysisView ? 'Analysis' : 'Transactions'}</h1>
               {profileBadge}
             </div>
-            <p>Saved reviewed transactions are shown first. Import a PDF when you are ready to add more.</p>
+            <p>
+              {isAnalysisView
+                ? 'Review monthly spending, category trends, and merchant totals.'
+                : 'Saved reviewed transactions are shown first. Import a PDF when you are ready to add more.'}
+            </p>
           </div>
           <div className="dashboard-actions">
+            <div className="view-switch" aria-label="Dashboard view">
+              <button
+                className={activeView === 'transactions' ? 'view-switch-active' : ''}
+                type="button"
+                onClick={() => setActiveView('transactions')}
+              >
+                Transactions
+              </button>
+              <button
+                className={isAnalysisView ? 'view-switch-active' : ''}
+                type="button"
+                onClick={() => setActiveView('analysis')}
+              >
+                Analysis
+              </button>
+            </div>
             {hasActiveImport ? (
               <button className="secondary-button" type="button" onClick={() => setActiveView('import')}>
                 Resume Import
@@ -251,6 +273,8 @@ export function App() {
 
           {review.parseResult ? <ParserDiagnostics parseResult={review.parseResult} /> : null}
         </>
+      ) : isAnalysisView ? (
+        <AnalysisDashboard savedReviewData={review.savedReviewData} />
       ) : (
         <>
           <AccountsSummary
