@@ -16,6 +16,13 @@ type TransactionFilters = {
   amountMax: string;
 };
 
+type TransactionSortField = 'date' | 'description' | 'source' | 'type' | 'categoryGroup' | 'category' | 'amount';
+
+type TransactionSort = {
+  field: TransactionSortField;
+  direction: 'asc' | 'desc';
+};
+
 type SavedTransactionsTableProps = {
   transactions: SavedTransaction[];
   accounts: Account[];
@@ -36,6 +43,7 @@ export function SavedTransactionsTable({
   onAccountFilterChange,
 }: SavedTransactionsTableProps) {
   const [filters, setFilters] = useState<TransactionFilters>(emptyTransactionFilters);
+  const [sort, setSort] = useState<TransactionSort>({ field: 'date', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const accountsById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
@@ -46,12 +54,8 @@ export function SavedTransactionsTable({
     [accountsById, filters, transactions],
   );
   const sortedTransactions = useMemo(
-    () =>
-      [...filteredTransactions].sort((a, b) => {
-        const dateComparison = a.date.localeCompare(b.date);
-        return dateComparison === 0 ? a.description.localeCompare(b.description) : dateComparison;
-      }),
-    [filteredTransactions],
+    () => [...filteredTransactions].sort((a, b) => compareSavedTransactions(a, b, accountsById, sort)),
+    [accountsById, filteredTransactions, sort],
   );
   const pageCount = Math.max(1, Math.ceil(sortedTransactions.length / pageSize));
   const boundedCurrentPage = Math.min(currentPage, pageCount);
@@ -62,7 +66,7 @@ export function SavedTransactionsTable({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, pageSize, selectedAccountId]);
+  }, [filters, pageSize, selectedAccountId, sort]);
 
   useEffect(() => {
     if (currentPage > pageCount) {
@@ -75,6 +79,14 @@ export function SavedTransactionsTable({
       ...currentFilters,
       [field]: value,
     }));
+  }
+
+  function updateSort(field: TransactionSortField) {
+    setSort((currentSort) =>
+      currentSort.field === field
+        ? { ...currentSort, direction: currentSort.direction === 'asc' ? 'desc' : 'asc' }
+        : { field, direction: 'asc' },
+    );
   }
 
   return (
@@ -122,13 +134,13 @@ export function SavedTransactionsTable({
         <table>
           <thead>
             <tr className="table-label-row">
-              <th>Date</th>
-              <th>Description</th>
-              <th>Source</th>
-              <th>Type</th>
-              <th>Group</th>
-              <th>Category</th>
-              <th className="amount-column">Amount</th>
+              <SortableHeader field="date" label="Date" sort={sort} onSort={updateSort} />
+              <SortableHeader field="description" label="Description" sort={sort} onSort={updateSort} />
+              <SortableHeader field="source" label="Source" sort={sort} onSort={updateSort} />
+              <SortableHeader field="type" label="Type" sort={sort} onSort={updateSort} />
+              <SortableHeader field="categoryGroup" label="Group" sort={sort} onSort={updateSort} />
+              <SortableHeader field="category" label="Category" sort={sort} onSort={updateSort} />
+              <SortableHeader field="amount" label="Amount" sort={sort} onSort={updateSort} align="right" />
             </tr>
             <tr className="table-filter-row">
               <th>
@@ -321,6 +333,36 @@ const emptyTransactionFilters: TransactionFilters = {
   amountMax: '',
 };
 
+type SortableHeaderProps = {
+  field: TransactionSortField;
+  label: string;
+  sort: TransactionSort;
+  align?: 'left' | 'right';
+  onSort: (field: TransactionSortField) => void;
+};
+
+function SortableHeader({ field, label, sort, align = 'left', onSort }: SortableHeaderProps) {
+  const isActive = sort.field === field;
+  const sortDirectionLabel = sort.direction === 'asc' ? 'ascending' : 'descending';
+  const nextSortDirectionLabel = isActive && sort.direction === 'asc' ? 'descending' : 'ascending';
+
+  return (
+    <th className={align === 'right' ? 'amount-column' : undefined} aria-sort={isActive ? sortDirectionLabel : 'none'}>
+      <button
+        className={`sort-header-button ${isActive ? 'sort-header-button-active' : ''}`}
+        type="button"
+        onClick={() => onSort(field)}
+        title={`Sort by ${label} ${nextSortDirectionLabel}`}
+      >
+        <span>{label}</span>
+        <span className="sort-indicator" aria-hidden="true">
+          {isActive ? (sort.direction === 'asc' ? 'Asc' : 'Desc') : '--'}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 function getTableSummary(
   filteredTransactionCount: number,
   accountTransactionCount: number,
@@ -339,6 +381,54 @@ function getTableSummary(
   }
 
   return `${totalTransactionCount} transactions across ${importCount} imports`;
+}
+
+function compareSavedTransactions(
+  a: SavedTransaction,
+  b: SavedTransaction,
+  accountsById: Map<string, Account>,
+  sort: TransactionSort,
+): number {
+  const directionMultiplier = sort.direction === 'asc' ? 1 : -1;
+  const primaryComparison = compareSavedTransactionField(a, b, accountsById, sort.field);
+
+  return (
+    primaryComparison * directionMultiplier ||
+    a.date.localeCompare(b.date) ||
+    a.description.localeCompare(b.description) ||
+    a.id.localeCompare(b.id)
+  );
+}
+
+function compareSavedTransactionField(
+  a: SavedTransaction,
+  b: SavedTransaction,
+  accountsById: Map<string, Account>,
+  field: TransactionSortField,
+): number {
+  switch (field) {
+    case 'date':
+      return a.date.localeCompare(b.date);
+    case 'description':
+      return a.description.localeCompare(b.description);
+    case 'source':
+      return getTransactionSourceLabel(a, accountsById).localeCompare(getTransactionSourceLabel(b, accountsById));
+    case 'type':
+      return a.type.localeCompare(b.type);
+    case 'categoryGroup':
+      return a.categoryGroup.localeCompare(b.categoryGroup);
+    case 'category':
+      return a.category.localeCompare(b.category);
+    case 'amount':
+      return a.amount - b.amount;
+    default:
+      return 0;
+  }
+}
+
+function getTransactionSourceLabel(transaction: SavedTransaction, accountsById: Map<string, Account>): string {
+  const account = accountsById.get(transaction.accountId);
+  return normalizeSearch([account?.name, transaction.source.issuer, transaction.source.account].filter(Boolean).join(' '));
 }
 
 function filterTransactions(
