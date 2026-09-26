@@ -46,9 +46,10 @@ export function SavedTransactionsTable({
   onExpenseKindChange,
 }: SavedTransactionsTableProps) {
   const [filters, setFilters] = useState<TransactionFilters>(emptyTransactionFilters);
-  const [sort, setSort] = useState<TransactionSort>({ field: 'date', direction: 'asc' });
+  const [sort, setSort] = useState<TransactionSort>({ field: 'date', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const accountsById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   const selectedAccount = accountsById.get(selectedAccountId);
   const hasColumnFilters = hasActiveColumnFilters(filters);
@@ -122,6 +123,9 @@ export function SavedTransactionsTable({
               ))}
             </select>
           </label>
+          <button className="secondary-button compact-button" type="button" onClick={() => setShowAdvancedFilters((visible) => !visible)} aria-expanded={showAdvancedFilters}>
+            {showAdvancedFilters ? 'Hide filters' : 'More filters'}{hasColumnFilters ? ' · active' : ''}
+          </button>
           <button
             className="secondary-button compact-button"
             type="button"
@@ -131,6 +135,15 @@ export function SavedTransactionsTable({
             Clear Filters
           </button>
         </div>
+      </div>
+
+      <div className="quick-filter-bar">
+        <input aria-label="Search transactions" placeholder="Search transactions…" value={filters.description} onChange={(event) => updateFilter('description', event.target.value)} />
+        <select aria-label="Quick expense kind filter" value={filters.expenseKind} onChange={(event) => updateFilter('expenseKind', event.target.value as TransactionFilters['expenseKind'])}>
+          <option value="">All expenses</option>
+          <option value="fixed">Fixed expenses</option>
+          <option value="flexible">Flexible expenses</option>
+        </select>
       </div>
 
       <div className="table-scroll saved-table-scroll">
@@ -145,7 +158,7 @@ export function SavedTransactionsTable({
               <SortableHeader field="category" label="Category" sort={sort} onSort={updateSort} />
               <SortableHeader field="amount" label="Amount" sort={sort} onSort={updateSort} align="right" />
             </tr>
-            <tr className="table-filter-row">
+            {showAdvancedFilters ? <tr className="table-filter-row">
               <th>
                 <div className="stacked-filter">
                   <input
@@ -234,7 +247,7 @@ export function SavedTransactionsTable({
                   />
                 </div>
               </th>
-            </tr>
+            </tr> : null}
           </thead>
           <tbody>
             {sortedTransactions.length === 0 ? (

@@ -3,6 +3,7 @@ import type { AppEnvironment } from '../electron/appProfile';
 import { buildAccountBalanceSummaries } from '../domain/balances';
 import { AccountsSummary } from './components/AccountsSummary';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
+import { OverviewDashboard } from './components/OverviewDashboard';
 import { ConfirmedTransactionsTable } from './components/ConfirmedTransactionsTable';
 import { ParserDiagnostics } from './components/ParserDiagnostics';
 import { SavedTransactionsTable } from './components/SavedTransactionsTable';
@@ -12,11 +13,11 @@ import { SummaryItem } from './components/SummaryItem';
 import { TransactionCandidatesTable } from './components/TransactionCandidatesTable';
 import { useImportReview } from './hooks/useImportReview';
 
-type AppView = 'transactions' | 'analysis' | 'import';
+type AppView = 'overview' | 'transactions' | 'analysis' | 'import';
 
 export function App() {
   const review = useImportReview();
-  const [activeView, setActiveView] = useState<AppView>('transactions');
+  const [activeView, setActiveView] = useState<AppView>('overview');
   const [appEnvironment, setAppEnvironment] = useState<AppEnvironment | null>(null);
   const [selectedTransactionAccountId, setSelectedTransactionAccountId] = useState('');
   const isImportView = activeView === 'import';
@@ -51,6 +52,11 @@ export function App() {
     review.handleFileChange(event);
   }
 
+  function showTransactions(accountId = '') {
+    setSelectedTransactionAccountId(accountId);
+    setActiveView('transactions');
+  }
+
   const uploadLabel = review.status === 'parsing' ? 'Parsing PDF...' : 'Import PDF';
   const hasActiveImport = Boolean(review.parseResult) || review.status === 'parsing';
   const accountBalanceSummaries = useMemo(
@@ -73,76 +79,38 @@ export function App() {
   ) : null;
 
   return (
-    <main className={`app-shell ${isImportView ? 'import-workspace-shell' : 'transactions-workspace-shell'}`}>
-      {isImportView ? (
-        <header className="app-header import-header">
-          <button className="secondary-button" type="button" onClick={() => setActiveView('transactions')}>
-            Back to Transactions
-          </button>
-          <div>
-            <div className="header-title-row">
-              <h1>Import Statement</h1>
-              {profileBadge}
+    <main className="app-layout">
+      <aside className="app-sidebar" aria-label="Main navigation">
+        <div className="brand-mark"><span className="brand-symbol">◒</span><span>Expense<br />Tracker</span></div>
+        <div className="sidebar-group-label">WORKSPACE</div>
+        <nav className="sidebar-nav">
+          {([
+            ['overview', 'Overview', '◫'],
+            ['transactions', 'Transactions', '≡'],
+            ['analysis', 'Insights', '◩'],
+            ['import', 'Import', '↥'],
+          ] as const).map(([view, label, icon]) => (
+            <button key={view} className={`sidebar-link ${activeView === view ? 'sidebar-link-active' : ''}`} type="button" onClick={() => setActiveView(view)} aria-current={activeView === view ? 'page' : undefined}>
+              <span aria-hidden="true">{icon}</span>{label}{view === 'import' && hasActiveImport ? <i aria-label="Import in progress" /> : null}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer"><span>LOCAL-FIRST FINANCES</span>{profileBadge}</div>
+      </aside>
+      <div className={`app-shell ${isImportView ? 'import-workspace-shell' : 'transactions-workspace-shell'}`}>
+        {activeView !== 'overview' ? (
+          <header className="app-header page-header">
+            <div>
+              <span className="eyebrow">{isImportView ? 'STATEMENT WORKSPACE' : isAnalysisView ? 'YOUR MONEY IN CONTEXT' : 'YOUR ACTIVITY'}</span>
+              <h1>{isImportView ? 'Import statement' : isAnalysisView ? 'Insights' : 'Transactions'}</h1>
+              <p>{isImportView ? 'Review, reconcile, and save a PDF statement.' : isAnalysisView ? 'Explore monthly trends and spending patterns.' : 'Search and refine your saved transaction history.'}</p>
             </div>
-            <p>Review the statement source, edit extracted rows, and save confirmed transactions.</p>
-          </div>
-          <label className="upload-button">
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              onChange={handleImportFileChange}
-              disabled={review.status === 'parsing'}
-            />
-            {review.status === 'parsing' ? 'Parsing PDF...' : 'Choose Different PDF'}
-          </label>
-        </header>
-      ) : (
-        <header className="app-header dashboard-header">
-          <div>
-            <div className="header-title-row">
-              <h1>{isAnalysisView ? 'Analysis' : 'Transactions'}</h1>
-              {profileBadge}
+            <div className="dashboard-actions">
+              {hasActiveImport && !isImportView ? <button className="secondary-button" type="button" onClick={() => setActiveView('import')}>Resume import</button> : null}
+              <label className="upload-button"><input type="file" accept="application/pdf,.pdf" onChange={handleImportFileChange} disabled={review.status === 'parsing'} />{isImportView && review.parseResult ? 'Choose different PDF' : uploadLabel}</label>
             </div>
-            <p>
-              {isAnalysisView
-                ? 'Review monthly spending, category trends, and merchant totals.'
-                : 'Saved reviewed transactions are shown first. Import a PDF when you are ready to add more.'}
-            </p>
-          </div>
-          <div className="dashboard-actions">
-            <div className="view-switch" aria-label="Dashboard view">
-              <button
-                className={activeView === 'transactions' ? 'view-switch-active' : ''}
-                type="button"
-                onClick={() => setActiveView('transactions')}
-              >
-                Transactions
-              </button>
-              <button
-                className={isAnalysisView ? 'view-switch-active' : ''}
-                type="button"
-                onClick={() => setActiveView('analysis')}
-              >
-                Analysis
-              </button>
-            </div>
-            {hasActiveImport ? (
-              <button className="secondary-button" type="button" onClick={() => setActiveView('import')}>
-                Resume Import
-              </button>
-            ) : null}
-            <label className="upload-button">
-              <input
-                type="file"
-                accept="application/pdf,.pdf"
-                onChange={handleImportFileChange}
-                disabled={review.status === 'parsing'}
-              />
-              {uploadLabel}
-            </label>
-          </div>
-        </header>
-      )}
+          </header>
+        ) : null}
 
       {review.status === 'parsing' ? (
         <StatusBanner tone="info" title="Parsing statement" message="Extracting selectable text from the PDF." />
@@ -160,8 +128,15 @@ export function App() {
 
       {review.saveMessage ? <StatusBanner tone="info" title="Saved import" message={review.saveMessage} /> : null}
 
-      {isImportView ? (
+      {activeView === 'overview' ? (
+        <OverviewDashboard data={review.savedReviewData} isLoading={review.persistenceStatus === 'loading'} onImport={() => setActiveView('import')} onTransactions={showTransactions} onInsights={() => setActiveView('analysis')} />
+      ) : isImportView ? (
         <>
+          <div className="import-steps" aria-label="Import progress">
+            <span className={review.parseResult ? 'step-complete' : 'step-current'}><b>1</b> Choose PDF</span>
+            <span className={review.status === 'confirming' ? 'step-current' : review.status === 'parsed' ? 'step-complete' : ''}><b>2</b> Confirm source</span>
+            <span className={review.status === 'parsed' ? 'step-current' : ''}><b>3</b> Review & save</span>
+          </div>
           {review.parseResult && review.status !== 'parsing' ? (
             <section className="import-section" aria-labelledby="import-title">
               <div className="section-header">
@@ -297,6 +272,7 @@ export function App() {
         </>
       )}
 
+      </div>
     </main>
   );
 }

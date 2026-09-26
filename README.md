@@ -20,7 +20,7 @@ The app is designed for local desktop use. It does not require a backend, cloud 
 - Requires reviewed imports to reconcile before saving
 - Saves accounts, reviewed imports, and confirmed transactions to local JSON storage
 - Shows account balance summaries, latest statement balances, import counts, and transaction counts
-- Shows saved transactions on the home screen across app launches
+- Opens to an Overview with monthly totals, fixed/flexible spending, top categories, recent activity, and accounts
 - Filters saved transactions by account, date, description, source, type, expense kind, category, and amount
 - Lets saved expenses be corrected from Fixed to Flexible or vice versa
 - Sorts saved transactions by table column and paginates the results
@@ -39,13 +39,13 @@ The review workspace separates candidate rows from confirmed rows. Candidate row
 
 The app calculates the expected ending balance from the statement opening balance and confirmed transactions. A reviewed import can only be saved when the calculated ending balance matches the statement ending balance.
 
-After saving, account summaries are calculated from the account opening balance plus saved transactions. The latest reconciled statement ending balance is shown separately so the calculated balance can be compared against the most recent imported statement. The saved transaction table can be filtered by account and column, sorted by any column, and viewed in pages of 10, 25, 50, or 100 rows. Its Fixed/Flexible selector can correct a saved expense without changing its amount or statement reconciliation.
+After saving, account summaries are calculated from the account opening balance plus saved transactions. The latest reconciled statement ending balance is shown separately so the calculated balance can be compared against the most recent imported statement. The saved transaction table has quick search and expense-kind filters, with additional column filters that can be expanded when needed. It can be sorted by any column and viewed in pages of 10, 25, 50, or 100 rows. Its Fixed/Flexible selector can correct a saved expense without changing its amount or statement reconciliation.
 
 The Analysis view summarizes saved transactions for a selected month and account. It shows income, expenses, transfers, net cash flow, and savings rate; expense totals by category and merchant; and category changes from the previous month. Transfers are shown separately and are excluded from the income and expense totals used for net cash flow and savings rate.
 
 ## App Design
 
-Expense Tracker uses a transactions-first layout. Account summaries and saved transactions are the default view. The Analysis view is available from the home header, and the import workspace is used when adding new statement activity.
+Expense Tracker opens to an Overview of the latest saved month, with a month selector, income, expenses, net cash flow, fixed versus flexible spending, top categories, recent transactions, and account balances. Sidebar navigation separates Overview, Transactions, Insights, and Import. The Overview links into the detailed transaction ledger and monthly Insights view. No budgeting or forecasting is implied by these summaries.
 
 The import workspace is organized around source confirmation, candidate review, confirmed transactions, reconciliation, and parser diagnostics. Parser diagnostics expose extracted text and candidate lines so parsing issues can be inspected without leaving the app.
 
