@@ -21,7 +21,10 @@ The app is designed for local desktop use. It does not require a backend, cloud 
 - Saves accounts, reviewed imports, and confirmed transactions to local JSON storage
 - Shows account balance summaries, latest statement balances, import counts, and transaction counts
 - Shows saved transactions on the home screen across app launches
-- Filters saved transactions by account
+- Filters saved transactions by account, date, description, source, type, category, and amount
+- Sorts saved transactions by table column and paginates the results
+- Analyzes monthly income, expenses, transfers, net cash flow, and savings rate
+- Shows expense breakdowns by category group, category, and merchant, plus a comparison with the previous month
 
 ## Current Workflow
 
@@ -35,11 +38,13 @@ The review workspace separates candidate rows from confirmed rows. Candidate row
 
 The app calculates the expected ending balance from the statement opening balance and confirmed transactions. A reviewed import can only be saved when the calculated ending balance matches the statement ending balance.
 
-After saving, account summaries are calculated from the account opening balance plus saved transactions. The latest reconciled statement ending balance is shown separately so the calculated balance can be compared against the most recent imported statement.
+After saving, account summaries are calculated from the account opening balance plus saved transactions. The latest reconciled statement ending balance is shown separately so the calculated balance can be compared against the most recent imported statement. The saved transaction table can be filtered by account and column, sorted by any column, and viewed in pages of 10, 25, 50, or 100 rows.
+
+The Analysis view summarizes saved transactions for a selected month and account. It shows income, expenses, transfers, net cash flow, and savings rate; expense totals by category group, category, and merchant; and category changes from the previous month. Transfers are shown separately and are excluded from the income and expense totals used for net cash flow and savings rate.
 
 ## App Design
 
-Expense Tracker uses a transactions-first layout. Account summaries and saved transactions are the default view, and the import workspace is used only when adding new statement activity.
+Expense Tracker uses a transactions-first layout. Account summaries and saved transactions are the default view. The Analysis view is available from the home header, and the import workspace is used when adding new statement activity.
 
 The import workspace is organized around source confirmation, candidate review, confirmed transactions, reconciliation, and parser diagnostics. Parser diagnostics expose extracted text and candidate lines so parsing issues can be inspected without leaving the app.
 
@@ -150,6 +155,12 @@ Run lint:
 npm run lint
 ```
 
+Run the TypeScript check:
+
+```powershell
+npx tsc --noEmit
+```
+
 Build/package the app:
 
 ```powershell
@@ -167,4 +178,4 @@ npm run package
 - Imports and transactions without account ids are treated as unsupported legacy data.
 - Scanned/image-only PDFs are not supported because OCR is not implemented.
 - Parsing is generic and conservative, not issuer-specific.
-- Budgeting and reporting views are not implemented.
+- Budgeting is not implemented. The Analysis view provides monthly expense reporting, but does not offer custom date ranges or export.
