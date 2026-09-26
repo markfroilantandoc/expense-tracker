@@ -242,7 +242,7 @@ export function App() {
             onToggleRow={(id) => review.toggleRowSelection('candidate', id)}
             onFieldChange={review.handleCandidateFieldChange}
             onTypeChange={review.handleCandidateTypeChange}
-            onCategoryGroupChange={review.handleCandidateCategoryGroupChange}
+            onExpenseKindChange={review.handleCandidateExpenseKindChange}
             onCategoryChange={review.handleCandidateCategoryChange}
           />
 
@@ -262,7 +262,7 @@ export function App() {
             calculatedEndingBalance={review.reconciliation.calculatedEndingBalance}
             onManualFieldChange={review.handleManualTransactionFieldChange}
             onManualTypeChange={review.handleManualTransactionTypeChange}
-            onManualCategoryGroupChange={review.handleManualTransactionCategoryGroupChange}
+            onManualExpenseKindChange={review.handleManualTransactionExpenseKindChange}
             onManualCategoryChange={review.handleManualTransactionCategoryChange}
             onAddManualTransaction={review.addManualTransaction}
             onReturnSelected={review.returnSelectedConfirmed}
@@ -290,7 +290,9 @@ export function App() {
             totalTransactionCount={review.savedReviewData.transactions.length}
             importCount={review.savedReviewData.imports.length}
             isLoading={review.persistenceStatus === 'loading'}
+            updatingExpenseKindId={review.updatingExpenseKindId}
             onAccountFilterChange={setSelectedTransactionAccountId}
+            onExpenseKindChange={review.updateSavedExpenseKind}
           />
         </>
       )}

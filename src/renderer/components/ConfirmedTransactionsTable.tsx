@@ -1,10 +1,12 @@
-import { categoriesByGroup, categoryGroups, type CategoryGroup } from '../../domain/categories';
+import { categories, type Category } from '../../domain/categories';
 import {
   isValidAmount,
   transactionTypes,
   type CandidateDraft,
   type ConfirmedTransaction,
   type TransactionType,
+  type ExpenseKind,
+  expenseKinds,
 } from '../../domain/transactions';
 
 type ConfirmedTransactionsTableProps = {
@@ -18,8 +20,8 @@ type ConfirmedTransactionsTableProps = {
   calculatedEndingBalance: number | null;
   onManualFieldChange: (field: keyof CandidateDraft, value: string) => void;
   onManualTypeChange: (value: TransactionType) => void;
-  onManualCategoryGroupChange: (value: CategoryGroup) => void;
-  onManualCategoryChange: (value: string) => void;
+  onManualExpenseKindChange: (value: ExpenseKind) => void;
+  onManualCategoryChange: (value: Category) => void;
   onAddManualTransaction: () => void;
   onReturnSelected: () => void;
   onSaveReviewedImport: () => void;
@@ -38,7 +40,7 @@ export function ConfirmedTransactionsTable({
   calculatedEndingBalance,
   onManualFieldChange,
   onManualTypeChange,
-  onManualCategoryGroupChange,
+  onManualExpenseKindChange,
   onManualCategoryChange,
   onAddManualTransaction,
   onReturnSelected,
@@ -102,23 +104,25 @@ export function ConfirmedTransactionsTable({
             </option>
           ))}
         </select>
-        <select
-          className="table-input category-group-select"
-          value={manualTransactionDraft.categoryGroup}
-          onChange={(event) => onManualCategoryGroupChange(event.target.value as CategoryGroup)}
-        >
-          {categoryGroups.map((categoryGroup) => (
-            <option key={categoryGroup} value={categoryGroup}>
-              {categoryGroup}
-            </option>
-          ))}
-        </select>
+        {manualTransactionDraft.type === 'expense' ? (
+          <select
+            className="table-input expense-kind-select"
+            value={manualTransactionDraft.expenseKind ?? 'flexible'}
+            onChange={(event) => onManualExpenseKindChange(event.target.value as ExpenseKind)}
+          >
+            {expenseKinds.map((expenseKind) => (
+              <option key={expenseKind} value={expenseKind}>
+                {expenseKind === 'fixed' ? 'Fixed' : 'Flexible'}
+              </option>
+            ))}
+          </select>
+        ) : <span className="manual-expense-kind-placeholder">—</span>}
         <select
           className="table-input category-select"
           value={manualTransactionDraft.category}
-          onChange={(event) => onManualCategoryChange(event.target.value)}
+          onChange={(event) => onManualCategoryChange(event.target.value as Category)}
         >
-          {categoriesByGroup[manualTransactionDraft.categoryGroup].map((category) => (
+          {categories.map((category) => (
             <option key={category} value={category}>
               {category}
             </option>
@@ -151,7 +155,7 @@ export function ConfirmedTransactionsTable({
               <th>Date</th>
               <th>Description</th>
               <th>Type</th>
-              <th>Group</th>
+              <th>Expense Kind</th>
               <th>Category</th>
               <th className="amount-column">Amount</th>
             </tr>
@@ -181,7 +185,7 @@ export function ConfirmedTransactionsTable({
                     </div>
                   </td>
                   <td>{transaction.type}</td>
-                  <td>{transaction.categoryGroup}</td>
+                  <td>{transaction.type === 'expense' ? (transaction.expenseKind === 'fixed' ? 'Fixed' : 'Flexible') : '—'}</td>
                   <td>{transaction.category}</td>
                   <td className="amount-column">${transaction.amount.toFixed(2)}</td>
                 </tr>

@@ -21,10 +21,11 @@ The app is designed for local desktop use. It does not require a backend, cloud 
 - Saves accounts, reviewed imports, and confirmed transactions to local JSON storage
 - Shows account balance summaries, latest statement balances, import counts, and transaction counts
 - Shows saved transactions on the home screen across app launches
-- Filters saved transactions by account, date, description, source, type, category, and amount
+- Filters saved transactions by account, date, description, source, type, expense kind, category, and amount
+- Lets saved expenses be corrected from Fixed to Flexible or vice versa
 - Sorts saved transactions by table column and paginates the results
 - Analyzes monthly income, expenses, transfers, net cash flow, and savings rate
-- Shows expense breakdowns by category group, category, and merchant, plus a comparison with the previous month
+- Shows expense breakdowns by category and merchant, plus a comparison with the previous month
 
 ## Current Workflow
 
@@ -34,13 +35,13 @@ During import, the PDF text is extracted through the Electron main/preload bridg
 
 Before reviewing rows, the user confirms the statement source by selecting or creating an account, entering the statement start and end dates, and entering the statement opening and ending balances. Parsed issuer and account text are treated as hints only; saved account selection is the source of truth.
 
-The review workspace separates candidate rows from confirmed rows. Candidate rows can be edited inline, categorized, selected in bulk, and moved into the confirmed transactions table. Confirmed rows can be returned to candidates if they need more editing. Missing rows can be added manually.
+The review workspace separates candidate rows from confirmed rows. Candidate rows can be edited inline, categorized, selected in bulk, and moved into the confirmed transactions table. Expense rows receive a suggested Fixed or Flexible value, which can be changed per transaction. Confirmed rows can be returned to candidates if they need more editing. Missing rows can be added manually.
 
 The app calculates the expected ending balance from the statement opening balance and confirmed transactions. A reviewed import can only be saved when the calculated ending balance matches the statement ending balance.
 
-After saving, account summaries are calculated from the account opening balance plus saved transactions. The latest reconciled statement ending balance is shown separately so the calculated balance can be compared against the most recent imported statement. The saved transaction table can be filtered by account and column, sorted by any column, and viewed in pages of 10, 25, 50, or 100 rows.
+After saving, account summaries are calculated from the account opening balance plus saved transactions. The latest reconciled statement ending balance is shown separately so the calculated balance can be compared against the most recent imported statement. The saved transaction table can be filtered by account and column, sorted by any column, and viewed in pages of 10, 25, 50, or 100 rows. Its Fixed/Flexible selector can correct a saved expense without changing its amount or statement reconciliation.
 
-The Analysis view summarizes saved transactions for a selected month and account. It shows income, expenses, transfers, net cash flow, and savings rate; expense totals by category group, category, and merchant; and category changes from the previous month. Transfers are shown separately and are excluded from the income and expense totals used for net cash flow and savings rate.
+The Analysis view summarizes saved transactions for a selected month and account. It shows income, expenses, transfers, net cash flow, and savings rate; expense totals by category and merchant; and category changes from the previous month. Transfers are shown separately and are excluded from the income and expense totals used for net cash flow and savings rate.
 
 ## App Design
 
@@ -48,7 +49,7 @@ Expense Tracker uses a transactions-first layout. Account summaries and saved tr
 
 The import workspace is organized around source confirmation, candidate review, confirmed transactions, reconciliation, and parser diagnostics. Parser diagnostics expose extracted text and candidate lines so parsing issues can be inspected without leaving the app.
 
-Transaction categorization is separate from accounting semantics. Transaction `type` describes how money affects the account, while `categoryGroup` and `category` describe how the user wants to analyze the transaction.
+Transaction categorization is separate from accounting semantics. Transaction `type` describes how money affects the account, `category` is a single reporting label, and expense transactions also have an `expenseKind` of `fixed` or `flexible`.
 
 ## Data Model
 
@@ -78,18 +79,7 @@ Transaction effects depend on account type:
 
 Current account balances are calculated from the saved account opening balance plus all saved transactions for that account. Latest statement balances come from the most recent saved import for the account.
 
-Transactions also carry categorization fields for reporting:
-
-- `categoryGroup`: high-level reporting bucket
-- `category`: second-level category within the selected group
-
-Current category groups:
-
-- `Fixed Expenses`: Housing, Utilities, Grocery, Transportation, Other
-- `Discretionary Expenses`: Food, Shopping, Subscription, Other
-- `Savings`: Stocks, Interest Account, Other
-- `Income`: Salary, Interest, Repayment, Other
-- `Transfer`: Transfer
+Transactions carry one `category` for reporting. Current choices are Housing, Utilities, Grocery, Transportation, Food, Shopping, Subscription, Stocks, Interest Account, Salary, Interest, Repayment, Transfer, and Other. Expense transactions additionally require `expenseKind: fixed | flexible`; income and transfers have no expense kind. Category suggestions do not lock the expense kind: it can be changed for each expense.
 
 ## Local Persistence
 
@@ -104,12 +94,14 @@ C:\Users\<user>\AppData\Roaming\expense-tracker-dev\expense-tracker-data.json
 C:\Users\<user>\AppData\Roaming\expense-tracker-prod\expense-tracker-data.json
 ```
 
-Before an existing data file is overwritten, the app creates a timestamped backup in the active profile's `backups` directory. In the `prod` profile, a backup failure stops the write. In the `dev` profile, backup failures are ignored so test data work can continue.
+Before an existing data file is overwritten, the app creates a timestamped backup in the active profile's `backups` directory. In the `prod` profile, a backup failure stops the write. In the `dev` profile, backup failures are ignored for routine writes. A migration backup must succeed in either profile.
+
+The current file format is version 2. On first open, each profile's version 1 file is migrated automatically: `Fixed Expenses` becomes `expenseKind: fixed`, `Discretionary Expenses` becomes `expenseKind: flexible`, and `categoryGroup` is removed. Accounts, imports, transaction IDs, categories, amounts, and balances are preserved. Migration creates a backup before replacing the file. If a legacy expense cannot be classified, the backup fails, or the file has an unsupported version, the original stays in place and the app shows a load error.
 
 Backup files use this shape:
 
 ```text
-C:\Users\<user>\AppData\Roaming\expense-tracker-prod\backups\expense-tracker-data-<timestamp>.json
+C:\Users\<user>\AppData\Roaming\expense-tracker-prod\backups\expense-tracker-data-<timestamp>-<id>.json
 ```
 
 The file uses a simple flat shape:
@@ -155,6 +147,14 @@ Run lint:
 npm run lint
 ```
 
+Run migration and categorization tests:
+
+```powershell
+npm test
+```
+
+To dry-run migration checks against an existing version 1 file without modifying it, set `EXPENSE_TRACKER_LEGACY_FIXTURE` to its path before running `npm test`.
+
 Run the TypeScript check:
 
 ```powershell
@@ -174,7 +174,7 @@ npm run package
 - Accounts can be created during import, but there is no dedicated accounts screen.
 - Account summaries are read-only; account editing and archiving are not implemented.
 - Saved transaction filtering exists, but per-transaction running balance rows are not implemented yet.
-- Saved transactions and saved imports do not have edit/delete workflows yet.
+- Saved expense kind can be edited; other saved transaction fields and saved imports do not have edit/delete workflows yet.
 - Imports and transactions without account ids are treated as unsupported legacy data.
 - Scanned/image-only PDFs are not supported because OCR is not implemented.
 - Parsing is generic and conservative, not issuer-specific.

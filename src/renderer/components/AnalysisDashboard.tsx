@@ -93,11 +93,6 @@ export function AnalysisDashboard({ savedReviewData }: AnalysisDashboardProps) {
           </div>
 
           <div className="analysis-grid">
-            <BreakdownPanel
-              title="Category Groups"
-              emptyMessage="No expenses in this month."
-              items={report.categoryGroupBreakdown}
-            />
             <BreakdownPanel title="Top Categories" emptyMessage="No categorized expenses yet." items={report.categoryBreakdown} />
             <BreakdownPanel title="Top Merchants" emptyMessage="No merchant spending yet." items={report.merchantBreakdown} />
             <ComparisonPanel

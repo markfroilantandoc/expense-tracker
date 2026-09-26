@@ -5,7 +5,7 @@ import {
   type AccountDraft,
   type AccountType,
 } from '../../domain/accounts';
-import { type CategoryGroup } from '../../domain/categories';
+import { type Category } from '../../domain/categories';
 import { createEmptySavedReviewData, type SavedReviewData } from '../../domain/persistence';
 import { sourceValue, type PdfParseResult, type StatementSource } from '../../domain/statements';
 import {
@@ -17,11 +17,12 @@ import {
   isValidCurrencyAmount,
   isValidAmount,
   parseAmount,
-  updateDraftCategoryGroup,
+  updateDraftType,
   type CandidateDraft,
   type ConfirmedTransaction,
   type TransactionCandidate,
   type TransactionType,
+  type ExpenseKind,
 } from '../../domain/transactions';
 
 export type ImportStatus = 'idle' | 'parsing' | 'confirming' | 'parsed' | 'error';
@@ -55,6 +56,7 @@ export function useImportReview() {
   const [persistenceStatus, setPersistenceStatus] = useState<PersistenceStatus>('loading');
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [updatingExpenseKindId, setUpdatingExpenseKindId] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -262,19 +264,17 @@ export function useImportReview() {
 
   function handleCandidateTypeChange(id: string, value: TransactionType) {
     setCandidateDrafts((currentCandidates) =>
-      currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, type: value } : candidate)),
+      currentCandidates.map((candidate) => (candidate.id === id ? updateDraftType(candidate, value) : candidate)),
     );
   }
 
-  function handleCandidateCategoryGroupChange(id: string, value: CategoryGroup) {
+  function handleCandidateExpenseKindChange(id: string, value: ExpenseKind) {
     setCandidateDrafts((currentCandidates) =>
-      currentCandidates.map((candidate) =>
-        candidate.id === id ? updateDraftCategoryGroup(candidate, value) : candidate,
-      ),
+      currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, expenseKind: value } : candidate)),
     );
   }
 
-  function handleCandidateCategoryChange(id: string, value: string) {
+  function handleCandidateCategoryChange(id: string, value: Category) {
     setCandidateDrafts((currentCandidates) =>
       currentCandidates.map((candidate) => (candidate.id === id ? { ...candidate, category: value } : candidate)),
     );
@@ -286,14 +286,14 @@ export function useImportReview() {
   }
 
   function handleManualTransactionTypeChange(value: TransactionType) {
-    setManualTransactionDraft((currentDraft) => ({ ...currentDraft, type: value }));
+    setManualTransactionDraft((currentDraft) => updateDraftType(currentDraft, value));
   }
 
-  function handleManualTransactionCategoryGroupChange(value: CategoryGroup) {
-    setManualTransactionDraft((currentDraft) => updateDraftCategoryGroup(currentDraft, value));
+  function handleManualTransactionExpenseKindChange(value: ExpenseKind) {
+    setManualTransactionDraft((currentDraft) => ({ ...currentDraft, expenseKind: value }));
   }
 
-  function handleManualTransactionCategoryChange(value: string) {
+  function handleManualTransactionCategoryChange(value: Category) {
     setManualTransactionDraft((currentDraft) => ({ ...currentDraft, category: value }));
   }
 
@@ -425,6 +425,19 @@ export function useImportReview() {
     }
   }
 
+  async function updateSavedExpenseKind(transactionId: string, expenseKind: ExpenseKind) {
+    setUpdatingExpenseKindId(transactionId);
+    setPersistenceError(null);
+    try {
+      const nextData = await window.expenseTracker.updateExpenseKind({ transactionId, expenseKind });
+      setSavedReviewData(nextData);
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : 'Could not update expense kind.');
+    } finally {
+      setUpdatingExpenseKindId(null);
+    }
+  }
+
   function resetReviewState() {
     setCandidateDrafts([]);
     setConfirmedTransactions([]);
@@ -463,6 +476,7 @@ export function useImportReview() {
     persistenceStatus,
     persistenceError,
     saveMessage,
+    updatingExpenseKindId,
     handleFileChange,
     handleSelectedAccountChange,
     handleAccountDraftChange,
@@ -475,11 +489,11 @@ export function useImportReview() {
     handleSourceConfirmation,
     handleCandidateFieldChange,
     handleCandidateTypeChange,
-    handleCandidateCategoryGroupChange,
+    handleCandidateExpenseKindChange,
     handleCandidateCategoryChange,
     handleManualTransactionFieldChange,
     handleManualTransactionTypeChange,
-    handleManualTransactionCategoryGroupChange,
+    handleManualTransactionExpenseKindChange,
     handleManualTransactionCategoryChange,
     addManualTransaction,
     toggleRowSelection,
@@ -488,6 +502,7 @@ export function useImportReview() {
     confirmSelectedCandidates,
     returnSelectedConfirmed,
     saveCurrentReviewedImport,
+    updateSavedExpenseKind,
   };
 }
 

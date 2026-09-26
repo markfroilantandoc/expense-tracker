@@ -853,8 +853,27 @@ button:disabled {
   border-bottom: 1px solid #edf1f6;
   display: grid;
   gap: 8px;
-  grid-template-columns: 96px minmax(220px, 1fr) 110px 170px 140px 96px auto;
+  grid-template-columns: 96px minmax(220px, 1fr) 110px 116px 140px 96px auto;
   padding: 12px 20px;
+}
+
+.manual-expense-kind-placeholder {
+  color: #667085;
+  text-align: center;
+}
+
+.saved-expense-kind-select {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  min-height: 30px;
+  padding: 3px 6px;
+}
+
+.saved-expense-kind-select:focus {
+  border-color: #175cd3;
+  outline: 2px solid #bfdbfe;
 }
 
 table {
@@ -975,8 +994,8 @@ th {
   min-width: 98px;
 }
 
-.category-group-select {
-  min-width: 164px;
+.expense-kind-select {
+  min-width: 112px;
 }
 
 .category-select {

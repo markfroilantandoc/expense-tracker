@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Account } from '../../domain/accounts';
-import { categoryGroups, type CategoryGroup } from '../../domain/categories';
+import { expenseKinds, transactionTypes, type ExpenseKind, type TransactionType } from '../../domain/transactions';
 import type { SavedTransaction } from '../../domain/persistence';
-import { transactionTypes, type TransactionType } from '../../domain/transactions';
 
 type TransactionFilters = {
   dateFrom: string;
@@ -10,13 +9,13 @@ type TransactionFilters = {
   description: string;
   source: string;
   type: '' | TransactionType;
-  categoryGroup: '' | CategoryGroup;
+  expenseKind: '' | ExpenseKind;
   category: string;
   amountMin: string;
   amountMax: string;
 };
 
-type TransactionSortField = 'date' | 'description' | 'source' | 'type' | 'categoryGroup' | 'category' | 'amount';
+type TransactionSortField = 'date' | 'description' | 'source' | 'type' | 'expenseKind' | 'category' | 'amount';
 
 type TransactionSort = {
   field: TransactionSortField;
@@ -30,7 +29,9 @@ type SavedTransactionsTableProps = {
   totalTransactionCount: number;
   importCount: number;
   isLoading: boolean;
+  updatingExpenseKindId: string | null;
   onAccountFilterChange: (accountId: string) => void;
+  onExpenseKindChange: (transactionId: string, expenseKind: ExpenseKind) => void;
 };
 
 export function SavedTransactionsTable({
@@ -40,7 +41,9 @@ export function SavedTransactionsTable({
   totalTransactionCount,
   importCount,
   isLoading,
+  updatingExpenseKindId,
   onAccountFilterChange,
+  onExpenseKindChange,
 }: SavedTransactionsTableProps) {
   const [filters, setFilters] = useState<TransactionFilters>(emptyTransactionFilters);
   const [sort, setSort] = useState<TransactionSort>({ field: 'date', direction: 'asc' });
@@ -138,7 +141,7 @@ export function SavedTransactionsTable({
               <SortableHeader field="description" label="Description" sort={sort} onSort={updateSort} />
               <SortableHeader field="source" label="Source" sort={sort} onSort={updateSort} />
               <SortableHeader field="type" label="Type" sort={sort} onSort={updateSort} />
-              <SortableHeader field="categoryGroup" label="Group" sort={sort} onSort={updateSort} />
+              <SortableHeader field="expenseKind" label="Expense Kind" sort={sort} onSort={updateSort} />
               <SortableHeader field="category" label="Category" sort={sort} onSort={updateSort} />
               <SortableHeader field="amount" label="Amount" sort={sort} onSort={updateSort} align="right" />
             </tr>
@@ -191,16 +194,16 @@ export function SavedTransactionsTable({
               </th>
               <th>
                 <select
-                  aria-label="Filter by category group"
-                  value={filters.categoryGroup}
+                  aria-label="Filter by expense kind"
+                  value={filters.expenseKind}
                   onChange={(event) =>
-                    updateFilter('categoryGroup', event.target.value as TransactionFilters['categoryGroup'])
+                    updateFilter('expenseKind', event.target.value as TransactionFilters['expenseKind'])
                   }
                 >
-                  <option value="">Any group</option>
-                  {categoryGroups.map((categoryGroup) => (
-                    <option key={categoryGroup} value={categoryGroup}>
-                      {categoryGroup}
+                  <option value="">Any kind</option>
+                  {expenseKinds.map((expenseKind) => (
+                    <option key={expenseKind} value={expenseKind}>
+                      {expenseKind === 'fixed' ? 'Fixed' : 'Flexible'}
                     </option>
                   ))}
                 </select>
@@ -256,7 +259,23 @@ export function SavedTransactionsTable({
                     </div>
                   </td>
                   <td>{transaction.type}</td>
-                  <td>{transaction.categoryGroup}</td>
+                  <td>
+                    {transaction.type === 'expense' ? (
+                      <select
+                        className="saved-expense-kind-select"
+                        aria-label={`Expense kind for ${transaction.description} on ${transaction.date}`}
+                        value={transaction.expenseKind}
+                        disabled={updatingExpenseKindId !== null}
+                        onChange={(event) => onExpenseKindChange(transaction.id, event.target.value as ExpenseKind)}
+                      >
+                        {expenseKinds.map((expenseKind) => (
+                          <option key={expenseKind} value={expenseKind}>
+                            {expenseKind === 'fixed' ? 'Fixed' : 'Flexible'}
+                          </option>
+                        ))}
+                      </select>
+                    ) : '—'}
+                  </td>
                   <td>{transaction.category}</td>
                   <td className="amount-column">${transaction.amount.toFixed(2)}</td>
                 </tr>
@@ -327,7 +346,7 @@ const emptyTransactionFilters: TransactionFilters = {
   description: '',
   source: '',
   type: '',
-  categoryGroup: '',
+  expenseKind: '',
   category: '',
   amountMin: '',
   amountMax: '',
@@ -415,8 +434,8 @@ function compareSavedTransactionField(
       return getTransactionSourceLabel(a, accountsById).localeCompare(getTransactionSourceLabel(b, accountsById));
     case 'type':
       return a.type.localeCompare(b.type);
-    case 'categoryGroup':
-      return a.categoryGroup.localeCompare(b.categoryGroup);
+    case 'expenseKind':
+      return (a.expenseKind ?? '').localeCompare(b.expenseKind ?? '');
     case 'category':
       return a.category.localeCompare(b.category);
     case 'amount':
@@ -456,7 +475,7 @@ function filterTransactions(
       (!normalizedDescription || normalizeSearch(transaction.description).includes(normalizedDescription)) &&
       (!normalizedSource || sourceText.includes(normalizedSource)) &&
       (!filters.type || transaction.type === filters.type) &&
-      (!filters.categoryGroup || transaction.categoryGroup === filters.categoryGroup) &&
+      (!filters.expenseKind || transaction.expenseKind === filters.expenseKind) &&
       (!normalizedCategory || normalizeSearch(transaction.category).includes(normalizedCategory)) &&
       (amountMin === null || transaction.amount >= amountMin) &&
       (amountMax === null || transaction.amount <= amountMax)

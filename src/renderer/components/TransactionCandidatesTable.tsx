@@ -1,5 +1,5 @@
-import { categoriesByGroup, categoryGroups, type CategoryGroup } from '../../domain/categories';
-import { isValidAmount, transactionTypes, type CandidateDraft, type TransactionType } from '../../domain/transactions';
+import { categories, type Category } from '../../domain/categories';
+import { expenseKinds, isValidAmount, transactionTypes, type CandidateDraft, type ExpenseKind, type TransactionType } from '../../domain/transactions';
 
 type TransactionCandidatesTableProps = {
   candidates: CandidateDraft[];
@@ -9,8 +9,8 @@ type TransactionCandidatesTableProps = {
   onToggleRow: (id: string) => void;
   onFieldChange: (id: string, field: keyof CandidateDraft, value: string) => void;
   onTypeChange: (id: string, value: TransactionType) => void;
-  onCategoryGroupChange: (id: string, value: CategoryGroup) => void;
-  onCategoryChange: (id: string, value: string) => void;
+  onExpenseKindChange: (id: string, value: ExpenseKind) => void;
+  onCategoryChange: (id: string, value: Category) => void;
 };
 
 export function TransactionCandidatesTable({
@@ -21,7 +21,7 @@ export function TransactionCandidatesTable({
   onToggleRow,
   onFieldChange,
   onTypeChange,
-  onCategoryGroupChange,
+  onExpenseKindChange,
   onCategoryChange,
 }: TransactionCandidatesTableProps) {
   return (
@@ -51,7 +51,7 @@ export function TransactionCandidatesTable({
               <th>Date</th>
               <th>Description</th>
               <th>Type</th>
-              <th>Group</th>
+              <th>Expense Kind</th>
               <th>Category</th>
               <th className="amount-column">Amount</th>
             </tr>
@@ -104,25 +104,27 @@ export function TransactionCandidatesTable({
                     </select>
                   </td>
                   <td>
-                    <select
-                      className="table-input category-group-select"
-                      value={transaction.categoryGroup}
-                      onChange={(event) => onCategoryGroupChange(transaction.id, event.target.value as CategoryGroup)}
-                    >
-                      {categoryGroups.map((categoryGroup) => (
-                        <option key={categoryGroup} value={categoryGroup}>
-                          {categoryGroup}
-                        </option>
-                      ))}
-                    </select>
+                    {transaction.type === 'expense' ? (
+                      <select
+                        className="table-input expense-kind-select"
+                        value={transaction.expenseKind ?? 'flexible'}
+                        onChange={(event) => onExpenseKindChange(transaction.id, event.target.value as ExpenseKind)}
+                      >
+                        {expenseKinds.map((expenseKind) => (
+                          <option key={expenseKind} value={expenseKind}>
+                            {expenseKind === 'fixed' ? 'Fixed' : 'Flexible'}
+                          </option>
+                        ))}
+                      </select>
+                    ) : '—'}
                   </td>
                   <td>
                     <select
                       className="table-input category-select"
                       value={transaction.category}
-                      onChange={(event) => onCategoryChange(transaction.id, event.target.value)}
+                      onChange={(event) => onCategoryChange(transaction.id, event.target.value as Category)}
                     >
-                      {categoriesByGroup[transaction.categoryGroup].map((category) => (
+                      {categories.map((category) => (
                         <option key={category} value={category}>
                           {category}
                         </option>

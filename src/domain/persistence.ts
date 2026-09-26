@@ -1,8 +1,8 @@
 import type { Account } from './accounts';
 import type { StatementSource } from './statements';
-import type { ConfirmedTransaction } from './transactions';
+import type { ConfirmedTransaction, ExpenseKind } from './transactions';
 
-export const reviewDataVersion = 1;
+export const reviewDataVersion = 2;
 
 export type SavedImportRecord = {
   id: string;
@@ -37,6 +37,11 @@ export type SaveReviewedImportPayload = {
   statementOpeningBalance: number;
   statementEndingBalance: number;
   transactions: ConfirmedTransaction[];
+};
+
+export type UpdateExpenseKindPayload = {
+  transactionId: string;
+  expenseKind: ExpenseKind;
 };
 
 export function createEmptySavedReviewData(): SavedReviewData {

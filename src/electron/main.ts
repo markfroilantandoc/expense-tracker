@@ -3,9 +3,9 @@ import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { parsePdfStatement } from '../pdf/pdfImport';
 import type { CreateAccountPayload } from '../domain/accounts';
-import type { SaveReviewedImportPayload } from '../domain/persistence';
+import type { SaveReviewedImportPayload, UpdateExpenseKindPayload } from '../domain/persistence';
 import { configureProfileUserDataPath, getAppEnvironment, getAppProfile } from './appProfile';
-import { createAccount, loadSavedReviewData, saveReviewedImport } from './reviewDataStore';
+import { createAccount, loadSavedReviewData, saveReviewedImport, updateExpenseKind } from './reviewDataStore';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -32,6 +32,10 @@ ipcMain.handle('accounts:create', async (_event, payload: CreateAccountPayload) 
 
 ipcMain.handle('review-data:save-import', async (_event, payload: SaveReviewedImportPayload) => {
   return saveReviewedImport(payload);
+});
+
+ipcMain.handle('review-data:update-expense-kind', async (_event, payload: UpdateExpenseKindPayload) => {
+  return updateExpenseKind(payload);
 });
 
 ipcMain.handle('app:get-environment', async () => {

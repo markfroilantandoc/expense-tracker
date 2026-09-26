@@ -31,7 +31,6 @@ export type ExpenseAnalysisReport = {
   transferTotal: number;
   netCashFlow: number;
   savingsRate: number | null;
-  categoryGroupBreakdown: AnalysisBreakdownItem[];
   categoryBreakdown: AnalysisBreakdownItem[];
   merchantBreakdown: AnalysisBreakdownItem[];
   categoryComparison: AnalysisComparisonItem[];
@@ -92,11 +91,6 @@ export function buildExpenseAnalysisReport(
     transferTotal,
     netCashFlow: roundCurrency(incomeTotal - expenseTotal),
     savingsRate: incomeTotal > 0 ? roundRatio((incomeTotal - expenseTotal) / incomeTotal) : null,
-    categoryGroupBreakdown: buildBreakdown(
-      expenseTransactions,
-      (transaction) => transaction.categoryGroup,
-      expenseTotal,
-    ),
     categoryBreakdown: buildBreakdown(expenseTransactions, getCategoryKey, expenseTotal),
     merchantBreakdown: buildBreakdown(expenseTransactions, getMerchantKey, expenseTotal).slice(0, 8),
     categoryComparison: buildCategoryComparison(expenseTransactions, previousExpenseTransactions),
@@ -204,7 +198,7 @@ function getTransactionMonth(transaction: SavedTransaction): string | null {
 }
 
 function getCategoryKey(transaction: SavedTransaction): string {
-  return `${transaction.categoryGroup}: ${transaction.category}`;
+  return transaction.category;
 }
 
 function getMerchantKey(transaction: SavedTransaction): string {
